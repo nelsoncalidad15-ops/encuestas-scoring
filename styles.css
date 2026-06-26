@@ -1,0 +1,115 @@
+/* Custom Styles for Autosol Subscription Validator */
+
+:root {
+  --bg: #F5F5F0;
+  --card: #FFFFFF;
+  --text: #2D2D2A;
+  --accent: #5A5A40;
+  --muted: #8E8E85;
+  --border: #E0E0D6;
+  --progress-bg: #EBEBE0;
+}
+
+/* Hide native radio inputs but keep accessible */
+.chip-option input[type="radio"],
+.chip-option-small input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+/* Custom Base Chip Styles - Natural Tones theme */
+.chip-option {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background-color: transparent;
+  border: 1.5px solid var(--border);
+  border-radius: 1rem; /* 16px */
+  cursor: pointer;
+  font-size: 0.9375rem; /* 15px */
+  font-weight: 500;
+  color: var(--text);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+}
+
+.chip-option-small {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.8rem 1rem;
+  background-color: transparent;
+  border: 1.5px solid var(--border);
+  border-radius: 1rem; /* 16px */
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+  text-align: center;
+}
+
+/* Hover feedback */
+.chip-option:hover,
+.chip-option-small:hover {
+  background-color: rgba(90, 90, 64, 0.02);
+  border-color: var(--accent);
+}
+
+/* Native Checked Styling via :has() */
+.chip-option:has(input[type="radio"]:checked),
+.chip-option-small:has(input[type="radio"]:checked) {
+  background-color: rgba(90, 90, 64, 0.05);
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: translateY(0);
+}
+
+.chip-option:has(input[type="radio"]:checked) span,
+.chip-option-small:has(input[type="radio"]:checked) span {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+/* Focused elements for keyboard accessibility */
+.chip-option:has(input[type="radio"]:focus-visible),
+.chip-option-small:has(input[type="radio"]:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Fade animation for step transition */
+.step-transition {
+  animation: fadeIn 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Scrollbar customization */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+}

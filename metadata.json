@@ -1,0 +1,6 @@
+{
+  "name": "Validador de Suscripción Autosol",
+  "description": "Encuesta web segura para validación de suscripción de Plan de Ahorro Autosol, conectada con Google Sheets y Apps Script.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
