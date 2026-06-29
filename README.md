@@ -143,10 +143,10 @@ Si por algÃºn motivo el cliente cometiÃ³ un error o necesita volver a responder 
 - ðŸ”’ **RotaciÃ³n de Claves**: Si sospecha que una clave ha sido expuesta, cambie el valor de `BACKEND_SECRET` en las Script Properties de Google y en las variables de entorno de Netlify de inmediato. La comunicaciÃ³n se reestablecerÃ¡ de forma segura al instante sin modificar una sola lÃ­nea de cÃ³digo del frontend.
 ---
 
-## ?? Cómo Subirlo a GitHub Sin Filtrar Datos
+## ?? Cï¿½mo Subirlo a GitHub Sin Filtrar Datos
 
 1. Verifique que el archivo `.env` **no** se suba. Este proyecto ya tiene `.gitignore` para ignorarlo.
-2. Suba al repo solo el código, por ejemplo:
+2. Suba al repo solo el cï¿½digo, por ejemplo:
    ```bash
    git init
    git branch -M main
@@ -155,7 +155,7 @@ Si por algÃºn motivo el cliente cometiÃ³ un error o necesita volver a responder 
    git commit -m "Base segura de encuestas scoring"
    git push -u origin main
    ```
-3. Cargue los secretos reales únicamente en Netlify:
+3. Cargue los secretos reales ï¿½nicamente en Netlify:
    - `APPS_SCRIPT_URL`
    - `BACKEND_SECRET`
    - `SITE_ORIGIN`
@@ -165,10 +165,10 @@ Si por algÃºn motivo el cliente cometiÃ³ un error o necesita volver a responder 
    - `DNI_SALT`
    - `NETLIFY_BASE_URL`
 
-### Qué queda oculto y qué no
+### Quï¿½ queda oculto y quï¿½ no
 
 - El **Google Sheet queda privado** y no se expone en el frontend.
-- El **Apps Script URL puede ser pública**, pero sin `BACKEND_SECRET` correcto no debería procesar datos.
+- El **Apps Script URL puede ser pï¿½blica**, pero sin `BACKEND_SECRET` correcto no deberï¿½a procesar datos.
 - El secreto real debe existir solo en:
   - Script Properties de Google Apps Script
   - Variables de entorno de Netlify

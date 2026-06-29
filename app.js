@@ -24,7 +24,6 @@ const stepCounter = document.getElementById("step-counter");
 const viewSuccess = document.getElementById("view-success");
 const errorToast = document.getElementById("error-toast");
 const errorToastMessage = document.getElementById("error-toast-message");
-const simulatedBanner = document.getElementById("simulated-banner");
 
 // Step panel elements
 const stepPanel2 = document.getElementById("step-panel-2");
@@ -45,19 +44,6 @@ window.addEventListener("DOMContentLoaded", async () => {
   const params = new URLSearchParams(window.location.search);
   urlToken = params.get("t") || "";
 
-  // Check health and mode (simulated or live)
-  try {
-    const healthRes = await fetch("/api/health");
-    if (healthRes.ok) {
-      const healthData = await healthRes.json();
-      if (healthData.mode === "mock") {
-        simulatedBanner.classList.remove("hidden");
-      }
-    }
-  } catch (err) {
-    console.warn("Could not retrieve backend mode. Standard operations will continue.");
-  }
-
   // Initialize Lucide Icons
   if (window.lucide) {
     window.lucide.createIcons();
@@ -69,31 +55,13 @@ window.addEventListener("DOMContentLoaded", async () => {
     if (!urlToken) {
       showElement(viewTokenError);
       document.getElementById("token-error-title").textContent = "Link incompleto";
-      document.getElementById("token-error-desc").textContent = "El link de validación no contiene un identificador único. Por favor, comuníquese con Autosol para recibir su enlace personalizado.";
+      document.getElementById("token-error-desc").textContent = "El enlace de validación no contiene un identificador único. Por favor, comuníquese con Autosol para recibir su enlace personalizado.";
     } else {
       showElement(viewStepValidation);
     }
   }, 800);
 });
 
-// Helper for simulated mode token filling
-window.fillMockToken = (token, dni) => {
-  urlToken = token;
-  // Update browser URL query parameter silently
-  const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + "?t=" + token;
-  window.history.pushState({ path: newUrl }, "", newUrl);
-  
-  const dniInput = document.getElementById("input-dni");
-  if (dniInput) {
-    dniInput.value = dni;
-  }
-  
-  // Transition from the token error view to the input/validation step
-  hideElement(viewTokenError);
-  showElement(viewStepValidation);
-  hideToast();
-  showToast("Token de prueba cargado. Presione 'Validar y Continuar' para iniciar la encuesta.", "info");
-};
 
 // UI Helper Functions
 function showElement(el) {
@@ -179,13 +147,13 @@ async function validateDni(event) {
       // Restore view and show message
       showElement(viewStepValidation);
       if (data.status === "DNI_INVALIDO") {
-        showToast("El DNI ingresado no coincide con el registrado para esta validación. Verifique los números e intente de nuevo.");
+        showToast("El DNI ingresado no coincide con el registrado para esta validación. Verifique los números e intente nuevamente.");
       } else if (data.status === "TOKEN_INVALIDO") {
-        showToast("El link no es válido o se encuentra vencido. Por favor comuníquese con Autosol.");
+        showToast("El enlace no es válido o se encuentra vencido. Por favor comuníquese con Autosol.");
       } else if (data.status === "YA_RESPONDIO") {
         hideElement(viewStepValidation);
         showElement(viewSuccess);
-        document.getElementById("view-success").querySelector("h2").textContent = "Validación ya Realizada";
+        document.getElementById("view-success").querySelector("h2").textContent = "Validación ya realizada";
         document.getElementById("view-success").querySelector("p").textContent = "Esta validación ya fue registrada anteriormente. Muchas gracias por su colaboración.";
       } else {
         showToast(data.message || "No pudimos validar su identidad en este momento. Intente de nuevo.");
@@ -238,7 +206,7 @@ function validateCurrentStep() {
     
     if (!q5 || !q6 || !q7 || !q8) return false;
 
-    // Conditional q8b and q8c if q8 is Débito Automático (t. credito, t. debito, or debito/ CBU)
+    // Conditional q8b and q8c if q8 is D�bito Autom�tico (t. credito, t. debito, or debito/ CBU)
     if (q8 === "t. credito" || q8 === "t. debito" || q8 === "debito/ CBU") {
       const q8b = getRadioValue("q8b");
       const q8c = getRadioValue("q8c");
@@ -269,13 +237,13 @@ function validateCurrentStep() {
 
     if (!q12 || !q13 || !q14 || !q15) return false;
 
-    // Conditional q13a if q13 is Sí
+    // Conditional q13a if q13 is S�
     if (q13 === "Sí") {
       const q13a = document.getElementById("input-q13a").value.trim();
       if (!q13a) return false;
     }
 
-    // Conditional q15a if q15 is Sí or "Se lo prometieron pero no lo recibió"
+    // Conditional q15a if q15 is S� or "Se lo prometieron pero no lo recibi�"
     if (q15 === "Sí" || q15 === "Se lo prometieron pero no lo recibió") {
       const q15a = document.getElementById("input-q15a").value.trim();
       if (!q15a) return false;
@@ -284,7 +252,7 @@ function validateCurrentStep() {
   }
 
   if (currentStep === 6) {
-    // Requires q17 (radio), and q16 (text) is only required if q17 is Sí
+    // Requires q17 (radio), and q16 (text) is only required if q17 is S�
     const q17 = getRadioValue("q17");
     if (!q17) return false;
 
@@ -356,7 +324,7 @@ function populateVendors(vendedores) {
     "GASTON BASTOS",
     "HORACIO ZELAYA",
     "JOSE SALUZZO",
-    "RODRIGO VILLAFAÑE",
+    "RODRIGO VILLAFA�E",
     "VANESA ZAMBRANO"
   ];
 
@@ -410,7 +378,7 @@ window.toggleBenefitField = (show) => {
   }
 };
 
-// Toggle whether observations are mandatory based on recontact (q17 === Sí)
+// Toggle whether observations are mandatory based on recontact (q17 === S�)
 window.toggleObservationsRequired = (required) => {
   const q16Textarea = document.getElementById("input-q16");
   const q16Label = document.getElementById("label-q16");
@@ -418,11 +386,11 @@ window.toggleObservationsRequired = (required) => {
 
   if (required) {
     q16Textarea.setAttribute("required", "required");
-    q16Label.innerHTML = "16. ¿Desea agregar alguna observación? *";
+    q16Label.innerHTML = "16. ¿Desea agregar alguna observación?";
     q16Helper.classList.remove("hidden");
   } else {
     q16Textarea.removeAttribute("required");
-    q16Label.innerHTML = "16. ¿Desea agregar alguna observación?";
+    q16Label.innerHTML = "16. �Desea agregar alguna observaci�n?";
     q16Helper.classList.add("hidden");
   }
 };
@@ -445,7 +413,7 @@ function updateStepUI() {
   // Show active step panel
   if (currentStep === 2) {
     showElement(stepPanel2);
-    stepTitle.textContent = "Información del Plan";
+    stepTitle.textContent = "Informaci�n del Plan";
   } else if (currentStep === 3) {
     showElement(stepPanel3);
     stepTitle.textContent = "Cuotas y Pagos";
@@ -477,7 +445,7 @@ function updateStepUI() {
 
   // Next button layout (Submit or Next Step)
   if (currentStep === totalSteps) {
-    btnNextText.textContent = "Enviar Validación";
+    btnNextText.textContent = "Enviar validación";
     btnNextIcon.setAttribute("data-lucide", "check-circle");
     btnNavNext.classList.remove("bg-autosol-primary", "hover:bg-blue-700");
     btnNavNext.classList.add("bg-emerald-600", "hover:bg-emerald-700", "shadow-emerald-100");
@@ -555,14 +523,14 @@ async function submitSurvey() {
       showElement(surveyQuestionsContainer);
       
       if (data.status === "DNI_INVALIDO") {
-        showToast("Error de validación: El DNI no coincide. Verifique e intente de nuevo.");
+        showToast("Error de validación: el DNI no coincide. Verifique e intente nuevamente.");
       } else if (data.status === "TOKEN_INVALIDO") {
-        showToast("El link no es válido o ya venció. Por favor comuníquese con Autosol.");
+        showToast("El enlace no es válido o ya venció. Por favor comuníquese con Autosol.");
       } else if (data.status === "YA_RESPONDIO") {
         hideElement(surveyQuestionsContainer);
         hideElement(progressContainer);
         showElement(viewSuccess);
-        document.getElementById("view-success").querySelector("h2").textContent = "Validación ya Realizada";
+        document.getElementById("view-success").querySelector("h2").textContent = "Validación ya realizada";
         document.getElementById("view-success").querySelector("p").textContent = "Esta validación ya fue registrada anteriormente. Muchas gracias por su colaboración.";
       } else {
         showToast(data.message || "No pudimos guardar sus respuestas en este momento. Intente nuevamente.");
@@ -573,6 +541,6 @@ async function submitSurvey() {
     hideElement(viewLoadingOverlay);
     showElement(progressContainer);
     showElement(surveyQuestionsContainer);
-    showToast("Error de red. No pudimos guardar su encuesta. Compruebe su conexión e intente nuevamente.");
+    showToast("Error de red. No pudimos guardar su encuesta. Compruebe su conexi�n e intente nuevamente.");
   }
 }
