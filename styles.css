@@ -1,4 +1,4 @@
-/* Custom Styles for Autosol Subscription Validator */
+﻿/* Custom Styles for Autosol Subscription Validator */
 
 :root {
   --bg: #F5F5F0;
@@ -122,14 +122,66 @@
 }
 
 @media (max-width: 640px) {
+  body {
+    background:
+      radial-gradient(circle at top, rgba(255, 255, 255, 0.95), rgba(245, 245, 240, 0.98) 42%),
+      linear-gradient(180deg, #f7f7f2 0%, #f1f0e8 100%);
+  }
+
+  #survey-card {
+    border-radius: 1.5rem;
+    box-shadow: 0 20px 45px rgba(45, 45, 42, 0.08);
+  }
+
+  #progress-container {
+    position: sticky;
+    top: 57px;
+    z-index: 20;
+    backdrop-filter: blur(10px);
+  }
+
+  #step-actions {
+    margin-left: -1rem;
+    margin-right: -1rem;
+    margin-bottom: -1rem;
+    padding: 0.9rem 1rem calc(0.9rem + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(14px);
+  }
+
+  #btn-nav-prev,
+  #btn-nav-next,
+  #btn-validate-submit {
+    min-height: 52px;
+  }
+
+  #btn-nav-next {
+    min-width: 58%;
+  }
+
   .chip-option {
-    padding: 0.9rem 0.8rem;
-    font-size: 0.9rem;
+    padding: 1rem 0.9rem;
+    font-size: 0.94rem;
+    line-height: 1.35;
   }
 
   .chip-option-small {
-    padding: 0.75rem 0.65rem;
-    font-size: 0.82rem;
-    line-height: 1.2;
+    padding: 0.88rem 0.7rem;
+    font-size: 0.84rem;
+    line-height: 1.25;
+  }
+
+  #view-step-validation h2,
+  #view-success h2,
+  #view-token-error h2 {
+    line-height: 1.1;
+  }
+
+  #survey-questions-container p.text-sm.font-semibold,
+  #survey-questions-container label.block.text-sm.font-semibold {
+    font-size: 0.98rem;
+    line-height: 1.45;
   }
 }
+

@@ -170,9 +170,9 @@ function updateStepUI() {
   stepCounter.textContent = `Paso ${currentStep - 1} de ${totalSteps - 1}`;
   progressBar.style.width = `${((currentStep - 2) / (totalSteps - 2)) * 100}%`;
 
-  btnNavPrev.classList.toggle("invisible", currentStep === 2);
+  btnNavPrev.classList.toggle("hidden", currentStep === 2);
   btnNextText.textContent = currentStep === totalSteps ? "Enviar validacion" : "Continuar";
-  window.scrollTo({ top: 0, behavior: "smooth" });
+  document.getElementById("survey-card").scrollIntoView({ block: "start", behavior: "smooth" });
 }
 
 function navigateStep(direction) {
@@ -324,4 +324,5 @@ async function submitSurvey() {
     showToast("Error de red. No pudimos guardar su encuesta. Compruebe su conexion e intente nuevamente.");
   }
 }
+
 
