@@ -11,8 +11,9 @@ function onOpen() {
       .createMenu("Encuestas Autosol")
       .addItem("1. Preparar planilla", "setupInicialDesdeMenu")
       .addItem("2. Actualizar nuevos clientes", "procesarNuevosIngresosDesdeMenu")
-      .addItem("3. Reparar links", "regenerarLinksExistentesDesdeMenu")
-      .addItem("4. Sincronizar seguimiento", "sincronizarSeguimientoCCDesdeMenu")
+      .addItem("3. Aplicar scoring de llamada", "procesarScoringLlamadasDesdeMenu")
+      .addItem("4. Reparar links", "regenerarLinksExistentesDesdeMenu")
+      .addItem("5. Sincronizar seguimiento", "sincronizarSeguimientoCCDesdeMenu")
       .addToUi();
   } catch (e) {
     Logger.log("No se pudo crear el menu en este contexto: " + e);
@@ -34,6 +35,10 @@ function setupInicialDesdeMenu() {
 
 function procesarNuevosIngresosDesdeMenu() {
   mostrarToast(procesarNuevosIngresos());
+}
+
+function procesarScoringLlamadasDesdeMenu() {
+  mostrarToast(procesarScoringLlamadas());
 }
 
 function regenerarLinksExistentesDesdeMenu() {
@@ -103,6 +108,7 @@ function doPost(e) {
 function setupInicial() {
   ensureSheets();
   ensureHeaders();
+  actualizarCatalogoPreguntas();
   actualizarInstructivoCC();
   sincronizarSeguimientoCC();
   formatearSeguimientoCC();
@@ -308,13 +314,14 @@ function guardarRespuestaScoring(cliente, respuestas, scoring) {
   sheet.appendRow(newRow);
 }
 
-function actualizarBaseCliente(rowIndex, scoring) {
+function actualizarBaseCliente(rowIndex, scoring, opciones) {
   var sheet = getSheet("Base_Clientes");
   var headerMap = getHeaderMap(sheet);
   var fechaActual = new Date();
+  var origen = opciones && opciones.origen ? opciones.origen : "WEB";
 
-  sheet.getRange(rowIndex, headerMap["ESTADO_ENCUESTA"]).setValue("Respondido");
-  sheet.getRange(rowIndex, headerMap["FECHA_RESPUESTA_WEB"]).setValue(fechaActual);
+  sheet.getRange(rowIndex, headerMap["ESTADO_ENCUESTA"]).setValue(origen === "LLAMADA" ? "Scoring por llamada" : "Respondido");
+  if (origen !== "LLAMADA") sheet.getRange(rowIndex, headerMap["FECHA_RESPUESTA_WEB"]).setValue(fechaActual);
   sheet.getRange(rowIndex, headerMap["Fecha realizacion scoring"]).setValue(fechaActual);
   sheet.getRange(rowIndex, headerMap["RESULTADO_SCORING"]).setValue(scoring.resultado);
   sheet.getRange(rowIndex, headerMap["MOTIVO_RESULTADO"]).setValue(scoring.motivo);
@@ -578,6 +585,71 @@ function generarMensajeWhatsAppParaFilas(rows) {
   return "Se compilaron " + count + " links de WhatsApp.";
 }
 
+function procesarScoringLlamadas() {
+  var trackingSheet = getSheet("Seguimiento_CC");
+  if (trackingSheet.getLastRow() < 2) return "No hay filas para procesar por llamada.";
+
+  var headerMap = getHeaderMap(trackingSheet);
+  var labels = getSeguimientoLabelByKeyMap();
+  var data = trackingSheet.getRange(2, 1, trackingSheet.getLastRow() - 1, trackingSheet.getLastColumn()).getValues();
+  var procesados = 0;
+  var omitidos = 0;
+
+  for (var i = 0; i < data.length; i++) {
+    var rowIndex = i + 2;
+    var canal = headerMap[labels["CANAL_SCORING"]] ? data[i][headerMap[labels["CANAL_SCORING"]] - 1] : "";
+    var estadoGestion = headerMap[labels["ESTADO_GESTION"]] ? data[i][headerMap[labels["ESTADO_GESTION"]] - 1] : "";
+    var proximaAccion = headerMap[labels["PROXIMA_ACCION"]] ? data[i][headerMap[labels["PROXIMA_ACCION"]] - 1] : "";
+
+    var esLlamada = canal === "Llamada" || canal === "Hibrido";
+    var listoParaAplicar = estadoGestion === "Llamada completa" || proximaAccion === "Aplicar scoring";
+    if (!esLlamada || !listoParaAplicar) continue;
+
+    var idCliente = headerMap[labels["ID_CLIENTE"]] ? data[i][headerMap[labels["ID_CLIENTE"]] - 1] : "";
+    var token = headerMap[labels["TOKEN"]] ? data[i][headerMap[labels["TOKEN"]] - 1] : "";
+    var baseRow = findBaseRowByIdOrToken(idCliente, token);
+    if (!baseRow) {
+      omitidos++;
+      continue;
+    }
+
+    var respuestas = buildRespuestasFromSeguimientoRow(data[i], headerMap, labels);
+    if (!respuestas.q1 || !respuestas.q2 || !respuestas.q3 || !respuestas.q4 || !respuestas.q5 || !respuestas.q9 || !respuestas.q10 || !respuestas.q11 || !respuestas.q14 || !respuestas.q15 || !respuestas.q17) {
+      omitidos++;
+      continue;
+    }
+
+    var scoring = calcularScoring(respuestas);
+    var clienteInfo = {
+      idCliente: baseRow.values[baseRow.headerMap["ID_CLIENTE"] - 1],
+      nombre: baseRow.values[baseRow.headerMap["Nombre y Apellido"] - 1],
+      modelo: baseRow.values[baseRow.headerMap["Modelo suscripto/falta plan"] - 1],
+      asesor: baseRow.values[baseRow.headerMap["Nombre del Asesor"] - 1],
+      montoCuota2Base: baseRow.values[baseRow.headerMap["Monto 2da cuota (aprox)"] - 1],
+      token: token || (baseRow.headerMap["TOKEN"] ? baseRow.values[baseRow.headerMap["TOKEN"] - 1] : ""),
+      dniHash: baseRow.headerMap["DNI_HASH"] ? baseRow.values[baseRow.headerMap["DNI_HASH"] - 1] : ""
+    };
+
+    guardarRespuestaScoring(clienteInfo, respuestas, scoring);
+    actualizarBaseCliente(baseRow.rowIndex, scoring, { origen: "LLAMADA" });
+
+    if (headerMap[labels["RESPONDIO_CLIENTE"]]) trackingSheet.getRange(rowIndex, headerMap[labels["RESPONDIO_CLIENTE"]]).setValue("Si");
+    if (headerMap[labels["RESULTADO_SCORING"]]) trackingSheet.getRange(rowIndex, headerMap[labels["RESULTADO_SCORING"]]).setValue(scoring.resultado);
+    if (headerMap[labels["MOTIVO_RESULTADO"]]) trackingSheet.getRange(rowIndex, headerMap[labels["MOTIVO_RESULTADO"]]).setValue(scoring.motivo);
+    if (headerMap[labels["REQUIERE_RECONTACTO"]]) trackingSheet.getRange(rowIndex, headerMap[labels["REQUIERE_RECONTACTO"]]).setValue(scoring.requiereRecontacto);
+    if (headerMap[labels["ESTADO_FINAL_CC"]]) trackingSheet.getRange(rowIndex, headerMap[labels["ESTADO_FINAL_CC"]]).setValue(scoring.resultado);
+    if (headerMap[labels["AREA_A_REVISAR"]]) trackingSheet.getRange(rowIndex, headerMap[labels["AREA_A_REVISAR"]]).setValue(scoring.area);
+    if (headerMap[labels["OBSERVACION_INTERNA"]]) trackingSheet.getRange(rowIndex, headerMap[labels["OBSERVACION_INTERNA"]]).setValue(scoring.observacion);
+    if (headerMap[labels["ESTADO_GESTION"]]) trackingSheet.getRange(rowIndex, headerMap[labels["ESTADO_GESTION"]]).setValue("Scoring cerrado");
+    if (headerMap[labels["PROXIMA_ACCION"]]) trackingSheet.getRange(rowIndex, headerMap[labels["PROXIMA_ACCION"]]).setValue("Cerrado");
+    if (headerMap[labels["ESTADO_ENCUESTA"]]) trackingSheet.getRange(rowIndex, headerMap[labels["ESTADO_ENCUESTA"]]).setValue("Scoring por llamada");
+    procesados++;
+  }
+
+  formatearSeguimientoCC();
+  return "Scoring de llamada aplicado en " + procesados + " filas. Omitidas: " + omitidos + ".";
+}
+
 function construirTextoBotonEncuesta() {
   return "Abrir encuesta";
 }
@@ -727,21 +799,45 @@ function getSeguimientoColumns() {
     { key: "Nombre y Apellido", label: "Cliente" },
     { key: "Celular", label: "Celular" },
     { key: "LINK_ENCUESTA", label: "Encuesta" },
+    { key: "CANAL_SCORING", label: "Canal" },
+    { key: "ESTADO_GESTION", label: "Estado gestion" },
+    { key: "PROXIMA_ACCION", label: "Proxima accion" },
     { key: "ESTADO_ENVIO_WPP", label: "Estado envio" },
     { key: "ESTADO_ENCUESTA", label: "Estado encuesta" },
     { key: "RESPONDIO_CLIENTE", label: "Respondio" },
     { key: "RESULTADO_SCORING", label: "Resultado" },
     { key: "MOTIVO_RESULTADO", label: "Motivo / detalle" },
     { key: "REQUIERE_RECONTACTO", label: "Recontacto" },
+    { key: "OBS_CC", label: "Observaciones operador" },
+    { key: "OPERADOR_CC", label: "Operador" },
+    { key: "CALL_Q1", label: "Llamada Q1 - Conocia plan" },
+    { key: "CALL_Q2", label: "Llamada Q2 - Informaron licitacion" },
+    { key: "CALL_Q3", label: "Llamada Q3 - Informaron adjudicacion" },
+    { key: "CALL_Q4", label: "Llamada Q4 - Diferencia licitar/adjudicar" },
+    { key: "CALL_Q5", label: "Llamada Q5 - Informaron cuota 2" },
+    { key: "CALL_Q6", label: "Llamada Q6 - Primera cuota y medio" },
+    { key: "CALL_Q7", label: "Llamada Q7 - Fecha primera cuota" },
+    { key: "CALL_Q8", label: "Llamada Q8 - Como seguira pagando" },
+    { key: "CALL_Q8B", label: "Llamada Q8B - Firmo anexo debito" },
+    { key: "CALL_Q8C", label: "Llamada Q8C - Entendio debito" },
+    { key: "CALL_Q9", label: "Llamada Q9 - Quien es su vendedor" },
+    { key: "CALL_Q10", label: "Llamada Q10 - Calificacion vendedor" },
+    { key: "CALL_Q11", label: "Llamada Q11 - Explico unidad" },
+    { key: "CALL_Q12", label: "Llamada Q12 - Otro plan reciente" },
+    { key: "CALL_Q13", label: "Llamada Q13 - Tiene usado" },
+    { key: "CALL_Q13A", label: "Llamada Q13A - Vehiculo usado" },
+    { key: "CALL_Q14", label: "Llamada Q14 - Como conocio propuesta" },
+    { key: "CALL_Q15", label: "Llamada Q15 - Beneficio o regalo" },
+    { key: "CALL_Q15A", label: "Llamada Q15A - Detalle beneficio" },
+    { key: "CALL_Q16", label: "Llamada Q16 - Observaciones cliente" },
+    { key: "CALL_Q17", label: "Llamada Q17 - Necesita recontacto" },
     { key: "ESTADO_FINAL_CC", label: "Estado final" },
     { key: "AREA_A_REVISAR", label: "Area a revisar" },
     { key: "OBSERVACION_INTERNA", label: "Observaciones internas" },
     { key: "Nombre del Asesor", label: "Asesor" },
-    { key: "OPERADOR_CC", label: "Operador" },
     { key: "FECHA_ULTIMO_ENVIO_WPP", label: "Ultimo envio" },
     { key: "ULTIMO_CONTACTO_CC", label: "Ultimo contacto" },
     { key: "CANTIDAD_INTENTOS_WPP", label: "Intentos" },
-    { key: "OBS_CC", label: "Observaciones" },
     { key: "ID_CLIENTE", label: "ID interno" },
     { key: "TOKEN", label: "Token" }
   ];
@@ -766,6 +862,90 @@ function getSeguimientoLabelByKeyMap() {
   var map = {};
   for (var i = 0; i < columns.length; i++) map[columns[i].key] = columns[i].label;
   return map;
+}
+
+function getSeguimientoEditableLocalKeys() {
+  return {
+    "CANAL_SCORING": true,
+    "ESTADO_GESTION": true,
+    "PROXIMA_ACCION": true,
+    "OPERADOR_CC": true,
+    "OBS_CC": true,
+    "CALL_Q1": true,
+    "CALL_Q2": true,
+    "CALL_Q3": true,
+    "CALL_Q4": true,
+    "CALL_Q5": true,
+    "CALL_Q6": true,
+    "CALL_Q7": true,
+    "CALL_Q8": true,
+    "CALL_Q8B": true,
+    "CALL_Q8C": true,
+    "CALL_Q9": true,
+    "CALL_Q10": true,
+    "CALL_Q11": true,
+    "CALL_Q12": true,
+    "CALL_Q13": true,
+    "CALL_Q13A": true,
+    "CALL_Q14": true,
+    "CALL_Q15": true,
+    "CALL_Q15A": true,
+    "CALL_Q16": true,
+    "CALL_Q17": true
+  };
+}
+
+function getSeguimientoDefaultValue(key) {
+  if (key === "CANAL_SCORING") return "WhatsApp";
+  if (key === "ESTADO_GESTION") return "Nuevo";
+  if (key === "PROXIMA_ACCION") return "Enviar WPP";
+  return "";
+}
+
+function buildRespuestasFromSeguimientoRow(rowValues, headerMap, labels) {
+  var valueOf = function(key) {
+    var label = labels[key];
+    if (!label || !headerMap[label]) return "";
+    return rowValues[headerMap[label] - 1] || "";
+  };
+
+  return {
+    q1: valueOf("CALL_Q1"),
+    q2: valueOf("CALL_Q2"),
+    q3: valueOf("CALL_Q3"),
+    q4: valueOf("CALL_Q4"),
+    q5: valueOf("CALL_Q5"),
+    q6: valueOf("CALL_Q6"),
+    q7: valueOf("CALL_Q7"),
+    q8: valueOf("CALL_Q8"),
+    q8b: valueOf("CALL_Q8B"),
+    q8c: valueOf("CALL_Q8C"),
+    q9: valueOf("CALL_Q9"),
+    q10: valueOf("CALL_Q10"),
+    q11: valueOf("CALL_Q11"),
+    q12: valueOf("CALL_Q12"),
+    q13: valueOf("CALL_Q13"),
+    q13a: valueOf("CALL_Q13A"),
+    q14: valueOf("CALL_Q14"),
+    q15: valueOf("CALL_Q15"),
+    beneficioDetalle: valueOf("CALL_Q15A"),
+    q16: valueOf("CALL_Q16"),
+    q17: valueOf("CALL_Q17")
+  };
+}
+
+function findBaseRowByIdOrToken(idCliente, token) {
+  var sheet = getSheet("Base_Clientes");
+  var headerMap = getHeaderMap(sheet);
+  var data = sheet.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    var rowId = headerMap["ID_CLIENTE"] ? data[i][headerMap["ID_CLIENTE"] - 1] : "";
+    var rowToken = headerMap["TOKEN"] ? data[i][headerMap["TOKEN"] - 1] : "";
+    if ((idCliente && rowId == idCliente) || (token && rowToken == token)) {
+      return { rowIndex: i + 1, values: data[i], headerMap: headerMap };
+    }
+  }
+  return null;
 }
 
 function ensureSheets() {
@@ -877,9 +1057,12 @@ function upsertSeguimientoCCDesdeBase(rowIndex) {
   var targetRow = 0;
   var labelByKey = getSeguimientoLabelByKeyMap();
   var keyByLabel = getSeguimientoKeyByLabelMap();
+  var localEditable = getSeguimientoEditableLocalKeys();
   var trackingIdLabel = labelByKey["ID_CLIENTE"];
   var trackingTokenLabel = labelByKey["TOKEN"];
   var trackingLastRow = trackingSheet.getLastRow();
+  var existingRow = null;
+
   if (trackingLastRow > 1) {
     var trackingData = trackingSheet.getRange(2, 1, trackingLastRow - 1, trackingSheet.getLastColumn()).getValues();
     for (var i = 0; i < trackingData.length; i++) {
@@ -887,6 +1070,7 @@ function upsertSeguimientoCCDesdeBase(rowIndex) {
       var trackToken = trackingHeaders[trackingTokenLabel] ? trackingData[i][trackingHeaders[trackingTokenLabel] - 1] : "";
       if ((idCliente && trackId === idCliente) || (token && trackToken === token)) {
         targetRow = i + 2;
+        existingRow = trackingData[i];
         break;
       }
     }
@@ -898,12 +1082,18 @@ function upsertSeguimientoCCDesdeBase(rowIndex) {
   for (var j = 0; j < orderedHeaders.length; j++) {
     var label = orderedHeaders[j];
     var key = keyByLabel[label] || label;
+    var currentValue = existingRow && trackingHeaders[label] ? existingRow[trackingHeaders[label] - 1] : "";
+
     if (key === "LINK_ENCUESTA") {
       values.push(construirTextoBotonEncuesta());
     } else if (key === "ENVIAR WPP") {
       values.push(construirTextoBotonWhatsApp(rowValues[baseHeaders["Nombre y Apellido"] - 1]));
+    } else if (localEditable[key]) {
+      values.push(currentValue || getSeguimientoDefaultValue(key));
+    } else if (baseHeaders[key]) {
+      values.push(rowValues[baseHeaders[key] - 1]);
     } else {
-      values.push(baseHeaders[key] ? rowValues[baseHeaders[key] - 1] : "");
+      values.push(currentValue || getSeguimientoDefaultValue(key));
     }
   }
 
@@ -946,59 +1136,96 @@ function formatearSeguimientoCC() {
   var lastColumn = sheet.getLastColumn();
 
   sheet.setFrozenRows(1);
+  sheet.setTabColor("#0f766e");
   if (sheet.getFilter()) sheet.getFilter().remove();
   sheet.getRange(1, 1, lastRow, lastColumn).createFilter();
+
+  var fullRange = sheet.getRange(1, 1, lastRow, lastColumn);
+  fullRange.setFontFamily("Arial");
+  fullRange.setBorder(false, false, false, false, false, false);
+
   sheet.getRange(1, 1, 1, lastColumn)
     .setFontWeight("bold")
     .setFontColor("#ffffff")
     .setBackground("#0f766e")
-    .setHorizontalAlignment("center");
+    .setHorizontalAlignment("center")
+    .setVerticalAlignment("middle");
 
-  sheet.setRowHeight(1, 34);
+  sheet.setRowHeight(1, 36);
   if (lastRow > 1) {
     sheet.getRange(2, 1, lastRow - 1, lastColumn)
+      .setFontColor("#111827")
+      .setBackground("#ffffff")
+      .setFontWeight("normal")
       .setVerticalAlignment("middle")
-      .setWrapStrategy(SpreadsheetApp.WrapStrategy.WRAP)
-      .setFontColor("#1f2937")
-      .setBackground("#f8fafc");
+      .setWrapStrategy(SpreadsheetApp.WrapStrategy.WRAP);
   }
 
   var widths = {};
-  widths[labels["ENVIAR WPP"]] = 180;
-  widths[labels["Nombre y Apellido"]] = 240;
-  widths[labels["Celular"]] = 120;
-  widths[labels["LINK_ENCUESTA"]] = 120;
-  widths[labels["ESTADO_ENVIO_WPP"]] = 150;
-  widths[labels["ESTADO_ENCUESTA"]] = 145;
-  widths[labels["RESPONDIO_CLIENTE"]] = 110;
-  widths[labels["RESULTADO_SCORING"]] = 150;
-  widths[labels["MOTIVO_RESULTADO"]] = 360;
-  widths[labels["REQUIERE_RECONTACTO"]] = 130;
-  widths[labels["ESTADO_FINAL_CC"]] = 140;
-  widths[labels["AREA_A_REVISAR"]] = 170;
-  widths[labels["OBSERVACION_INTERNA"]] = 320;
-  widths[labels["Nombre del Asesor"]] = 160;
-  widths[labels["OPERADOR_CC"]] = 140;
-  widths[labels["FECHA_ULTIMO_ENVIO_WPP"]] = 140;
-  widths[labels["ULTIMO_CONTACTO_CC"]] = 140;
-  widths[labels["CANTIDAD_INTENTOS_WPP"]] = 90;
-  widths[labels["OBS_CC"]] = 260;
-  widths[labels["ID_CLIENTE"]] = 100;
+  widths[labels["ENVIAR WPP"]] = 170;
+  widths[labels["Nombre y Apellido"]] = 220;
+  widths[labels["Celular"]] = 115;
+  widths[labels["LINK_ENCUESTA"]] = 110;
+  widths[labels["CANAL_SCORING"]] = 95;
+  widths[labels["ESTADO_GESTION"]] = 135;
+  widths[labels["PROXIMA_ACCION"]] = 135;
+  widths[labels["ESTADO_ENVIO_WPP"]] = 120;
+  widths[labels["ESTADO_ENCUESTA"]] = 125;
+  widths[labels["RESPONDIO_CLIENTE"]] = 90;
+  widths[labels["RESULTADO_SCORING"]] = 125;
+  widths[labels["MOTIVO_RESULTADO"]] = 330;
+  widths[labels["REQUIERE_RECONTACTO"]] = 95;
+  widths[labels["OBS_CC"]] = 240;
+  widths[labels["OPERADOR_CC"]] = 120;
+  widths[labels["ESTADO_FINAL_CC"]] = 130;
+  widths[labels["AREA_A_REVISAR"]] = 135;
+  widths[labels["OBSERVACION_INTERNA"]] = 260;
+  widths[labels["Nombre del Asesor"]] = 140;
+  widths[labels["FECHA_ULTIMO_ENVIO_WPP"]] = 110;
+  widths[labels["ULTIMO_CONTACTO_CC"]] = 110;
+  widths[labels["CANTIDAD_INTENTOS_WPP"]] = 80;
+  widths[labels["ID_CLIENTE"]] = 95;
   widths[labels["TOKEN"]] = 120;
+
+  var columns = getSeguimientoColumns();
+  for (var c = 0; c < columns.length; c++) {
+    if (columns[c].key.indexOf("CALL_Q") === 0) widths[columns[c].label] = 170;
+  }
 
   for (var key in widths) {
     if (headerMap[key]) sheet.setColumnWidth(headerMap[key], widths[key]);
   }
 
   var centerColumns = [
-    labels["ENVIAR WPP"], labels["LINK_ENCUESTA"], labels["ESTADO_ENVIO_WPP"], labels["ESTADO_ENCUESTA"], labels["RESPONDIO_CLIENTE"],
-    labels["RESULTADO_SCORING"], labels["REQUIERE_RECONTACTO"], labels["ESTADO_FINAL_CC"], labels["FECHA_ULTIMO_ENVIO_WPP"],
-    labels["ULTIMO_CONTACTO_CC"], labels["CANTIDAD_INTENTOS_WPP"], labels["ID_CLIENTE"]
+    labels["ENVIAR WPP"], labels["LINK_ENCUESTA"], labels["CANAL_SCORING"], labels["ESTADO_GESTION"], labels["PROXIMA_ACCION"], labels["ESTADO_ENVIO_WPP"],
+    labels["ESTADO_ENCUESTA"], labels["RESPONDIO_CLIENTE"], labels["RESULTADO_SCORING"], labels["REQUIERE_RECONTACTO"], labels["ESTADO_FINAL_CC"],
+    labels["FECHA_ULTIMO_ENVIO_WPP"], labels["ULTIMO_CONTACTO_CC"], labels["CANTIDAD_INTENTOS_WPP"], labels["ID_CLIENTE"]
   ];
 
   for (var i = 0; i < centerColumns.length; i++) {
     var col = headerMap[centerColumns[i]];
     if (col && lastRow > 1) sheet.getRange(2, col, lastRow - 1, 1).setHorizontalAlignment("center");
+  }
+
+  var paintColumn = function(key, color) {
+    var label = labels[key];
+    var col = headerMap[label];
+    if (col && lastRow > 1) sheet.getRange(2, col, lastRow - 1, 1).setBackground(color);
+  };
+
+  paintColumn("ENVIAR WPP", "#eff6ff");
+  paintColumn("LINK_ENCUESTA", "#eff6ff");
+  paintColumn("CANAL_SCORING", "#ecfeff");
+  paintColumn("ESTADO_GESTION", "#ecfeff");
+  paintColumn("PROXIMA_ACCION", "#ecfeff");
+  paintColumn("RESULTADO_SCORING", "#fefce8");
+  paintColumn("MOTIVO_RESULTADO", "#fefce8");
+  paintColumn("OBS_CC", "#fff7ed");
+
+  for (var q = 0; q < columns.length; q++) {
+    if (columns[q].key.indexOf("CALL_Q") === 0 && headerMap[columns[q].label] && lastRow > 1) {
+      sheet.getRange(2, headerMap[columns[q].label], lastRow - 1, 1).setBackground("#f8fafc");
+    }
   }
 
   if (headerMap[labels["TOKEN"]]) sheet.hideColumns(headerMap[labels["TOKEN"]]);
@@ -1021,9 +1248,71 @@ function formatearSeguimientoCC() {
     sheet.getRange(2, estadoCol, backgrounds.length, 1).setBackgrounds(backgrounds);
   }
 
+  if (lastRow > 1) {
+    if (headerMap[labels["CANAL_SCORING"]]) {
+      var ruleCanal = SpreadsheetApp.newDataValidation().requireValueInList(["WhatsApp", "Llamada", "Hibrido"], true).setAllowInvalid(true).build();
+      sheet.getRange(2, headerMap[labels["CANAL_SCORING"]], lastRow - 1, 1).setDataValidation(ruleCanal);
+    }
+    if (headerMap[labels["ESTADO_GESTION"]]) {
+      var ruleEstado = SpreadsheetApp.newDataValidation().requireValueInList(["Nuevo", "Pendiente contacto", "En gestion", "Llamada completa", "Scoring cerrado"], true).setAllowInvalid(true).build();
+      sheet.getRange(2, headerMap[labels["ESTADO_GESTION"]], lastRow - 1, 1).setDataValidation(ruleEstado);
+    }
+    if (headerMap[labels["PROXIMA_ACCION"]]) {
+      var ruleAccion = SpreadsheetApp.newDataValidation().requireValueInList(["Enviar WPP", "Esperar respuesta", "Llamar", "Aplicar scoring", "Recontactar", "Cerrado"], true).setAllowInvalid(true).build();
+      sheet.getRange(2, headerMap[labels["PROXIMA_ACCION"]], lastRow - 1, 1).setDataValidation(ruleAccion);
+    }
+  }
+
   try {
     sheet.getBandings().forEach(function(band) { band.remove(); });
   } catch (e) {}
+}
+
+function actualizarCatalogoPreguntas() {
+  var headers = ["Codigo", "Bloque", "Orden", "Pregunta", "Tipo", "Opciones", "Obligatoria", "Condicion", "Columna_respuesta", "Activa"];
+  ensureHeadersPresent("Preguntas", headers);
+
+  var sheet = getSheet("Preguntas");
+  var rows = [
+    ["Q1", "Plan", 1, "Le informaron que accedio a un plan de ahorro con porcentaje financiado del vehiculo. Lo sabia?", "Seleccion", "Si | No | No estoy seguro/a", "Si", "", "q1", "Si"],
+    ["Q2", "Plan", 2, "Le informaron que puede licitar a partir de la cuota 2 con el porcentaje indicado?", "Seleccion", "Si | No | No recuerda", "Si", "", "q2", "Si"],
+    ["Q3", "Plan", 3, "Le informaron si tiene adjudicacion asegurada y en que cuota?", "Seleccion", "Si | No | No recuerda", "Si", "", "q3", "Si"],
+    ["Q4", "Plan", 4, "Su asesor le explico la diferencia entre licitar y adjudicar?", "Seleccion", "Si | No | Parcialmente", "Si", "", "q4", "Si"],
+    ["Q5", "Plan", 5, "Le informaron el monto estimado de la cuota 2? Cuanto le dijeron?", "Texto", "", "Si", "", "q5", "Si"],
+    ["Q6", "Pagos", 6, "Cuanto pago en la primera cuota y por que medio la pago?", "Texto", "", "Si", "", "q6", "Si"],
+    ["Q7", "Pagos", 7, "Cuando pago la primera cuota?", "Texto", "", "No", "", "q7", "Si"],
+    ["Q8", "Pagos", 8, "Como seguira pagando su plan?", "Texto", "", "No", "", "q8", "Si"],
+    ["Q8B", "Pagos", 9, "Si sigue por debito automatico: firmo el anexo y sabe que esta en el contrato?", "Seleccion", "Si | No | No corresponde", "No", "Solo si el medio es debito automatico", "q8b", "Si"],
+    ["Q8C", "Pagos", 10, "Si sigue por debito automatico: entendio como funciona y la permanencia minima?", "Seleccion", "Si | No | No corresponde", "No", "Solo si el medio es debito automatico", "q8c", "Si"],
+    ["Q9", "Vendedor", 11, "Quien es su vendedor o asesor?", "Texto", "", "Si", "", "q9", "Si"],
+    ["Q10", "Vendedor", 12, "Como califica del 1 al 5 la atencion del vendedor?", "Seleccion", "1 | 2 | 3 | 4 | 5", "Si", "", "q10", "Si"],
+    ["Q11", "Vendedor", 13, "El vendedor supo explicar caracteristicas especificas de la unidad?", "Seleccion", "Si | No | Parcialmente | No corresponde / no recuerda", "Si", "", "q11", "Si"],
+    ["Q12", "Historial", 14, "Estuvo pagando otro plan de ahorro recientemente? De que marca y hasta que mes?", "Texto", "", "Si", "", "q12", "Si"],
+    ["Q13", "Usado", 15, "Tiene un vehiculo usado para entregar como parte de pago?", "Seleccion", "Si | No | Aun no sabe", "Si", "", "q13", "Si"],
+    ["Q13A", "Usado", 16, "Si tiene usado, cual es el vehiculo?", "Texto", "", "No", "Solo si en Q13 responde Si", "q13a", "Si"],
+    ["Q14", "Origen", 17, "Como conocio la propuesta?", "Seleccion", "Redes sociales | Referido | Asesor / vendedor | Local comercial | WhatsApp | Web | Otro", "Si", "", "q14", "Si"],
+    ["Q15", "Beneficios", 18, "Recibio algun beneficio o regalo por haberse suscripto?", "Seleccion", "Si | No | Se lo prometieron pero no lo recibio | No recuerda", "Si", "", "q15", "Si"],
+    ["Q15A", "Beneficios", 19, "Si hubo beneficio o regalo, cual fue?", "Texto", "", "No", "Solo si en Q15 responde Si o beneficio prometido no entregado", "beneficioDetalle", "Si"],
+    ["Q16", "Cierre", 20, "Desea agregar alguna observacion adicional?", "Texto", "", "No", "", "q16", "Si"],
+    ["Q17", "Cierre", 21, "Necesita que un asesor vuelva a contactarlo?", "Seleccion", "Si | No", "Si", "", "q17", "Si"]
+  ];
+
+  sheet.clearContents();
+  sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  sheet.getRange(2, 1, rows.length, rows[0].length).setValues(rows);
+  sheet.getRange(1, 1, 1, headers.length).setFontWeight("bold").setBackground("#dbeafe").setFontColor("#1e3a8a");
+  sheet.setFrozenRows(1);
+  sheet.setColumnWidth(1, 80);
+  sheet.setColumnWidth(2, 110);
+  sheet.setColumnWidth(3, 60);
+  sheet.setColumnWidth(4, 420);
+  sheet.setColumnWidth(5, 100);
+  sheet.setColumnWidth(6, 330);
+  sheet.setColumnWidth(7, 90);
+  sheet.setColumnWidth(8, 260);
+  sheet.setColumnWidth(9, 140);
+  sheet.setColumnWidth(10, 70);
+  sheet.getRange(2, 1, rows.length, headers.length).setWrap(true).setVerticalAlignment("middle");
 }
 
 function actualizarInstructivoCC() {
@@ -1031,34 +1320,37 @@ function actualizarInstructivoCC() {
   sheet.clear();
   sheet.getRange("A1").setValue("Instructivo Operativo - Encuestas Autosol");
   sheet.getRange("A1").setFontSize(16).setFontWeight("bold").setFontColor("#0f766e");
+  sheet.getRange("A2").setValue("Flujo simple para Contact Center");
+  sheet.getRange("A2").setFontWeight("bold").setFontColor("#334155");
 
   var rows = [
-    ["Objetivo", "Que el Contact Center vea solo los clientes listos para enviar, haga clic en WhatsApp y luego siga el estado desde Seguimiento_CC."],
-    ["Hoja 1", "Base_Clientes: la usa Recepcion. Ahi se cargan o importan los clientes nuevos."],
-    ["Hoja 2", "Seguimiento_CC: la usa Contact Center. Ahi estan WhatsApp, Encuesta, estados y resultado."],
-    ["Hoja 3", "Respuestas_Scoring: guarda cada encuesta respondida por el cliente."],
-    ["Hoja 4", "Log_Seguridad: registra errores, validaciones e intentos invalidos."],
-    ["Paso 1", "Recepcion agrega los nuevos clientes en Base_Clientes."],
-    ["Paso 2", "Contact Center abre la planilla y hace clic en Menu > Encuestas Autosol > Actualizar nuevos clientes."],
-    ["Paso 3", "El sistema genera token, link de encuesta, boton de WhatsApp y copia el cliente a Seguimiento_CC."],
-    ["Paso 4", "El operador trabaja desde Seguimiento_CC y hace clic en WhatsApp para enviar el mensaje."],
-    ["Paso 5", "Cuando el cliente responde, el sistema actualiza Base_Clientes, Seguimiento_CC y Respuestas_Scoring."],
-    ["Detalle del scoring", "Si un caso no pasa o requiere revision, en Seguimiento_CC se vera el motivo con numero de pregunta y respuesta del cliente para facilitar el recontacto."],
-    ["Uso diario", "El boton principal es Actualizar nuevos clientes. Reparar links y Sincronizar seguimiento se usan solo si hace falta corregir algo."],
-    ["Importante", "No cargar a mano Seguimiento_CC. Esa hoja se completa automaticamente desde Base_Clientes."],
-    ["Importante 2", "Si entran pocos scoring por dia, el proceso manual es mejor que una automatizacion permanente." ]
+    ["Base tecnica", "Base_Clientes guarda el maestro de datos y Recepcion puede seguir alimentandola."],
+    ["Base operativa", "Seguimiento_CC es la unica hoja de trabajo diario para Contact Center."],
+    ["Preguntas", "La hoja Preguntas contiene el guion editable de llamada y la estructura de la encuesta."],
+    ["Paso 1", "Cuando entren clientes nuevos en Base_Clientes, hacer clic en Menu > Encuestas Autosol > Actualizar nuevos clientes."],
+    ["Paso 2", "Cada cliente nuevo aparece en Seguimiento_CC con boton de WhatsApp, boton de encuesta y estado inicial."],
+    ["Paso 3", "Si el caso va por encuesta web, dejar Canal = WhatsApp y usar el boton Enviar mensaje."],
+    ["Paso 4", "Si el caso va por llamada, cambiar Canal a Llamada o Hibrido y completar en esa misma fila las columnas Llamada Q1 a Llamada Q17."],
+    ["Paso 5", "Cuando la llamada termina, poner Estado gestion = Llamada completa o Proxima accion = Aplicar scoring."],
+    ["Paso 6", "Luego hacer clic en Menu > Encuestas Autosol > Aplicar scoring de llamada."],
+    ["Resultado", "El sistema escribe Resultado, Motivo / detalle, Recontacto y Estado final tanto en Seguimiento_CC como en Base_Clientes."],
+    ["Lectura rapida", "Motivo / detalle deja marcado el numero de pregunta y la respuesta que genero la observacion para facilitar el recontacto."],
+    ["Orden diario", "Usar los filtros de Canal, Estado gestion y Proxima accion para separar pendientes, llamadas y cerrados."],
+    ["Criterio recomendado", "Usar Base_Clientes como hoja tecnica y Seguimiento_CC como mesa operativa. Asi el equipo no se pierde entre hojas."]
   ];
 
-  sheet.getRange(3, 1, rows.length, 2).setValues(rows);
-  sheet.getRange(3, 1, rows.length, 1).setFontWeight("bold").setFontColor("#111827");
-  sheet.getRange(3, 2, rows.length, 1).setWrap(true);
-  sheet.setColumnWidth(1, 180);
-  sheet.setColumnWidth(2, 760);
-  sheet.setFrozenRows(2);
-  sheet.getRange("A3:B" + (rows.length + 2)).applyRowBanding(SpreadsheetApp.BandingTheme.TEAL, true, false);
+  sheet.getRange(4, 1, rows.length, 2).setValues(rows);
+  sheet.getRange(4, 1, rows.length, 1).setFontWeight("bold").setFontColor("#111827");
+  sheet.getRange(4, 2, rows.length, 1).setWrap(true).setFontColor("#1f2937");
+  sheet.setColumnWidth(1, 190);
+  sheet.setColumnWidth(2, 820);
+  sheet.setFrozenRows(3);
+  try {
+    sheet.getBandings().forEach(function(band) { band.remove(); });
+  } catch (e) {}
+  sheet.getRange("A4:B" + (rows.length + 3)).applyRowBanding(SpreadsheetApp.BandingTheme.TEAL, true, false);
 }
 
-function obtenerListaVendedores() {
 function obtenerListaVendedores() {
   try {
     var sheet = getSheet("Vendedores");
