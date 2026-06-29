@@ -81,7 +81,7 @@ function doPost(e) {
   try {
     ensureSheets();
     ensureHeaders();
-    actualizarCatalogoPreguntas();
+    ensureQuestionCatalogSeeded();
 
     var payload = JSON.parse(e.postData.contents);
     var action = payload.action;
@@ -800,6 +800,7 @@ function registrarEnvioWhatsApp(idCliente, operador) {
 
 function registrarLog(token, dniHash, resultado, detalle, origen) {
   try {
+    ensureHeadersPresent("Log_Seguridad", ["Fecha", "Token", "DNI_HASH", "Resultado", "Detalle", "Origen"]);
     var sheet = getSheet("Log_Seguridad");
     sheet.appendRow([new Date(), token || "N/A", dniHash || "N/A", resultado, detalle, origen || "Backend"]);
   } catch (err) {
@@ -1435,6 +1436,13 @@ function actualizarCatalogoPreguntas() {
   sheet.getRange(2, 1, rows.length, headers.length).setWrap(true).setVerticalAlignment("middle");
 }
 
+function ensureQuestionCatalogSeeded() {
+  var sheet = getSheet("Preguntas");
+  if (sheet.getLastRow() <= 1 || sheet.getLastColumn() === 0) {
+    actualizarCatalogoPreguntas();
+  }
+}
+
 function actualizarInstructivoCC() {
   var sheet = getSheet("Instructivo_CC");
   sheet.clear();
@@ -1473,37 +1481,33 @@ function actualizarInstructivoCC() {
 
 function obtenerListaVendedores() {
   try {
+    ensureHeadersPresent("Vendedores", ["Nombre del Vendedor"]);
     var sheet = getSheet("Vendedores");
-    var values = sheet.getDataRange().getValues();
+    if (sheet.getLastRow() <= 1) return [];
+
+    var values = sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getValues();
     var lista = [];
-    for (var i = 1; i < values.length; i++) {
+    for (var i = 0; i < values.length; i++) {
       var nombre = values[i][0];
       if (nombre && nombre.toString().trim() !== "") lista.push(nombre.toString().trim());
     }
-    if (lista.length === 0) {
-      lista = [
-        "ARIADNA PETRUCIOLI",
-        "BRIAN DOUTHAT",
-        "EMILSE DIAZ",
-        "GASTON BASTOS",
-        "HORACIO ZELAYA",
-        "JOSE SALUZZO",
-        "RODRIGO VILLAFAÑE",
-        "VANESA ZAMBRANO"
-      ];
+
+    var unicos = {};
+    var salida = [];
+    for (var j = 0; j < lista.length; j++) {
+      var vendedor = lista[j];
+      if (!unicos[vendedor]) {
+        unicos[vendedor] = true;
+        salida.push(vendedor);
+      }
     }
-    lista.sort();
-    return lista;
+
+    salida.sort();
+    return salida;
   } catch (e) {
-    return [
-      "ARIADNA PETRUCIOLI",
-      "BRIAN DOUTHAT",
-      "EMILSE DIAZ",
-      "GASTON BASTOS",
-      "HORACIO ZELAYA",
-      "JOSE SALUZZO",
-      "RODRIGO VILLAFAÑE",
-      "VANESA ZAMBRANO"
-    ];
+    return [];
   }
 }
+
+
+

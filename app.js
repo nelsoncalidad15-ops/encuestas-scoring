@@ -138,7 +138,15 @@ async function validateDni(event) {
 function populateVendors(vendors) {
   const select = document.getElementById("input-q9");
   select.innerHTML = '<option value="" disabled selected>Seleccione su vendedor</option>';
-  vendors.forEach((vendor) => {
+  const normalized = [...new Set((vendors || []).map((vendor) => String(vendor || "").trim()).filter(Boolean))];
+
+  if (clientData?.asesor && !normalized.includes(clientData.asesor)) {
+    normalized.unshift(clientData.asesor);
+  }
+
+  normalized.sort((a, b) => a.localeCompare(b, "es"));
+
+  normalized.forEach((vendor) => {
     const option = document.createElement("option");
     option.value = vendor;
     option.textContent = vendor;
@@ -149,9 +157,9 @@ function populateVendors(vendors) {
   extra.textContent = "Otro";
   select.appendChild(extra);
 
-  select.addEventListener("change", () => {
+  select.onchange = () => {
     document.getElementById("wrapper-q9-otro").classList.toggle("hidden", select.value !== "Otro");
-  });
+  };
 }
 
 function updateStepUI() {
@@ -316,3 +324,4 @@ async function submitSurvey() {
     showToast("Error de red. No pudimos guardar su encuesta. Compruebe su conexion e intente nuevamente.");
   }
 }
+
