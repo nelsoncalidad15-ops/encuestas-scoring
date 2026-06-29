@@ -1029,18 +1029,18 @@ function ensureSheets() {
 
 function ensureHeadersPresent(sheetName, headers) {
   var sheet = getSheet(sheetName);
-  if (sheet.getLastRow() === 0) {
+  var lastRow = sheet.getLastRow();
+  var lastColumn = sheet.getLastColumn();
+
+  if (lastRow === 0 || lastColumn === 0) {
+    sheet.clear();
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
     sheet.getRange(1, 1, 1, headers.length).setFontWeight("bold").setBackground("#eef2f7");
     sheet.setFrozenRows(1);
     return;
   }
 
-  var currentHeaders = [];
-  if (sheet.getLastColumn() > 0) {
-    currentHeaders = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  }
-
+  var currentHeaders = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
   var existing = {};
   for (var i = 0; i < currentHeaders.length; i++) {
     if (currentHeaders[i]) existing[currentHeaders[i].toString().trim()] = true;
@@ -1052,10 +1052,13 @@ function ensureHeadersPresent(sheetName, headers) {
   }
 
   if (missing.length > 0) {
-    sheet.getRange(1, sheet.getLastColumn() + 1, 1, missing.length).setValues([missing]);
+    sheet.getRange(1, lastColumn + 1, 1, missing.length).setValues([missing]);
+    lastColumn = sheet.getLastColumn();
   }
 
-  sheet.getRange(1, 1, 1, sheet.getLastColumn()).setFontWeight("bold").setBackground("#eef2f7");
+  if (lastColumn > 0) {
+    sheet.getRange(1, 1, 1, lastColumn).setFontWeight("bold").setBackground("#eef2f7");
+  }
   sheet.setFrozenRows(1);
 }
 

@@ -113,3 +113,23 @@
 ::-webkit-scrollbar-thumb:hover {
   background: var(--muted);
 }
+
+
+.chip-option,
+.chip-option-small {
+  touch-action: manipulation;
+  min-height: 52px;
+}
+
+@media (max-width: 640px) {
+  .chip-option {
+    padding: 0.9rem 0.8rem;
+    font-size: 0.9rem;
+  }
+
+  .chip-option-small {
+    padding: 0.75rem 0.65rem;
+    font-size: 0.82rem;
+    line-height: 1.2;
+  }
+}

@@ -48,7 +48,7 @@
       </div>
     </header>
 
-    <main class="mx-auto w-full max-w-3xl px-4 py-6">
+    <main class="mx-auto w-full max-w-3xl px-3 py-4 sm:px-4 sm:py-6">
       <div id="error-toast" class="hidden mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
         <span id="error-toast-message"></span>
       </div>
@@ -64,7 +64,7 @@
           </div>
         </div>
 
-        <div class="p-6 md:p-8">
+        <div class="p-4 sm:p-6 md:p-8">
           <div id="view-initial-check" class="py-12 text-center">
             <div class="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-autosol-border border-t-autosol-primary"></div>
             <p class="text-sm text-autosol-accent">Iniciando verificacion segura...</p>
@@ -123,7 +123,7 @@
                 </div>
                 <div class="space-y-2 border-t border-autosol-border pt-3">
                   <p class="text-sm font-semibold">2. Le informaron que puede licitar a partir de la cuota 2?</p>
-                  <div class="grid grid-cols-3 gap-2">
+                  <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
                     <label class="chip-option-small"><input type="radio" name="q2" value="Si" required /><span>Si</span></label>
                     <label class="chip-option-small"><input type="radio" name="q2" value="No" /><span>No</span></label>
                     <label class="chip-option-small"><input type="radio" name="q2" value="No recuerdo" /><span>No recuerdo</span></label>
@@ -212,7 +212,7 @@
                 </div>
                 <div class="space-y-2 border-t border-autosol-border pt-3">
                   <p class="text-sm font-semibold">10. Como califica de 1 a 5 la atencion y amabilidad del vendedor?</p>
-                  <div class="grid grid-cols-5 gap-2">
+                  <div class="grid grid-cols-3 sm:grid-cols-5 gap-2">
                     <label class="chip-option-small"><input type="radio" name="q10" value="1" required /><span>1</span></label>
                     <label class="chip-option-small"><input type="radio" name="q10" value="2" /><span>2</span></label>
                     <label class="chip-option-small"><input type="radio" name="q10" value="3" /><span>3</span></label>
@@ -287,7 +287,7 @@
                 </div>
                 <div class="space-y-2 border-t border-autosol-border pt-3">
                   <p class="text-sm font-semibold">17. Necesita que un asesor vuelva a contactarlo? *</p>
-                  <div class="grid grid-cols-2 gap-2">
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <label class="chip-option-small"><input type="radio" name="q17" value="Si" required onclick="toggleObservationsRequired(true)" /><span>Si, por favor</span></label>
                     <label class="chip-option-small"><input type="radio" name="q17" value="No" onclick="toggleObservationsRequired(false)" /><span>No</span></label>
                   </div>
