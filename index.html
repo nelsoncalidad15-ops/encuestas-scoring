@@ -1,14 +1,12 @@
-<!doctype html>
-<html lang="es" class="h-full bg-[#F5F5F0]">
+﻿<!doctype html>
+<html lang="es" class="h-full bg-[#f5f5f0]">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Validación de Suscripción - Autosol</title>
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,600;1,600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
-    <!-- Tailwind Play CDN -->
+    <title>Validacion de Suscripcion - Autosol</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
@@ -21,671 +19,310 @@
             },
             colors: {
               autosol: {
-                dark: '#2D2D2A',    // Near black
-                primary: '#5A5A40', // Muted olive green
-                light: '#F5F5F0',   // Soft natural warm-gray/beige
-                accent: '#8E8E85',  // Muted grey-green
-                border: '#E0E0D6',  // Soft grey border
-                progressBg: '#EBEBE0' // Progress bar background
+                dark: '#2D2D2A',
+                primary: '#5A5A40',
+                light: '#F5F5F0',
+                accent: '#8E8E85',
+                border: '#E0E0D6',
+                progressBg: '#EBEBE0'
               }
             }
           }
         }
-      }
+      };
     </script>
-    <!-- Custom Styles -->
     <link rel="stylesheet" href="styles.css" />
-    <!-- Lucide Icons CDN -->
     <script src="https://unpkg.com/lucide@latest"></script>
   </head>
-  <body class="flex flex-col min-h-full font-sans text-autosol-dark antialiased bg-autosol-light">
-    
-    <!-- Top Progress & Header Bar -->
-    <header class="w-full bg-white border-b border-autosol-border sticky top-0 z-40 shadow-sm py-4">
-      <div class="max-w-xl mx-auto px-4 flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <!-- Geometric Vector representation of Autosol / VW layout -->
-          <div class="h-8 w-8 rounded-lg bg-gradient-to-br from-autosol-dark to-autosol-primary flex items-center justify-center shadow-md">
-            <span class="text-white font-sansDisplay font-bold text-lg italic">A</span>
-          </div>
+  <body class="min-h-full bg-autosol-light font-sans text-autosol-dark antialiased">
+    <header class="sticky top-0 z-40 border-b border-autosol-border bg-white/95 backdrop-blur">
+      <div class="mx-auto flex max-w-3xl items-center justify-between px-4 py-4">
+        <div class="flex items-center gap-3">
+          <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-autosol-dark to-autosol-primary text-lg font-sansDisplay font-bold text-white">A</div>
           <div>
-            <h1 class="text-lg font-display font-semibold tracking-tight text-autosol-dark">Autosol</h1>
-            <p class="text-[9px] uppercase tracking-widest text-autosol-accent font-bold leading-none">Plan de Ahorro</p>
+            <h1 class="font-display text-xl font-semibold">Autosol</h1>
+            <p class="text-[10px] font-bold uppercase tracking-[0.28em] text-autosol-accent">Plan de Ahorro</p>
           </div>
         </div>
-        <div class="flex items-center gap-1 text-xs font-semibold text-autosol-primary bg-autosol-light/80 px-2.5 py-1 rounded-full border border-autosol-border">
-          <i data-lucide-shield class="w-3.5 h-3.5 text-autosol-primary"></i>
-          <span>Entorno Seguro</span>
-        </div>
+        <div class="rounded-full border border-autosol-border bg-autosol-light px-3 py-1 text-xs font-semibold text-autosol-primary">Entorno seguro</div>
       </div>
     </header>
 
-    <!-- Main Content Stage -->
-    <main class="flex-1 flex flex-col justify-start py-6 px-4 max-w-xl mx-auto w-full">
-
-      <!-- App Notification/Error Drawer -->
-      <div id="error-toast" class="hidden mb-4 p-4 bg-red-50 border border-red-200 rounded-xl text-xs text-red-800 flex gap-2.5 items-start">
-        <i data-lucide-alert-circle class="w-4 h-4 text-red-500 shrink-0 mt-0.5"></i>
+    <main class="mx-auto w-full max-w-3xl px-4 py-6">
+      <div id="error-toast" class="hidden mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
         <span id="error-toast-message"></span>
       </div>
 
-      <!-- Main Interaction Card Container -->
-      <div id="survey-card" class="bg-white rounded-2xl border border-autosol-border shadow-md shadow-stone-200/45 overflow-hidden transition-all duration-300">
-        
-        <!-- Progress Indicator (Hidden on Greeting & Loading states) -->
-        <div id="progress-container" class="hidden border-b border-autosol-border bg-autosol-light/30 p-4">
-          <div class="flex justify-between items-center mb-2">
-            <span id="step-title" class="text-[11px] font-semibold text-autosol-accent uppercase tracking-widest">Plan de Ahorro</span>
-            <span id="step-counter" class="text-xs font-semibold text-autosol-accent tracking-wider bg-white px-2.5 py-0.5 rounded border border-autosol-border">Paso 1 de 6</span>
+      <section id="survey-card" class="overflow-hidden rounded-3xl border border-autosol-border bg-white shadow-sm">
+        <div id="progress-container" class="hidden border-b border-autosol-border bg-autosol-light/40 px-6 py-4">
+          <div class="mb-2 flex items-center justify-between">
+            <span id="step-title" class="text-[11px] font-semibold uppercase tracking-[0.24em] text-autosol-accent">Paso</span>
+            <span id="step-counter" class="rounded-full border border-autosol-border bg-white px-3 py-1 text-xs font-semibold text-autosol-accent">Paso 1 de 6</span>
           </div>
-          <div class="w-full bg-autosol-progressBg rounded-full h-1 overflow-hidden">
-            <div id="progress-bar" class="bg-autosol-primary h-1 rounded-full transition-all duration-500 ease-out" style="width: 0%"></div>
+          <div class="h-1.5 overflow-hidden rounded-full bg-autosol-progressBg">
+            <div id="progress-bar" class="h-full rounded-full bg-autosol-primary transition-all duration-300"></div>
           </div>
         </div>
 
-        <!-- Inner Content (Dynamic Views) -->
         <div class="p-6 md:p-8">
-
-          <!-- View: Checking URL Token & Loader -->
-          <div id="view-initial-check" class="flex flex-col items-center py-10">
-            <div class="animate-spin rounded-full h-10 w-10 border-4 border-autosol-light border-t-autosol-primary mb-4"></div>
-            <p class="text-sm font-medium text-autosol-accent">Iniciando verificación segura...</p>
+          <div id="view-initial-check" class="py-12 text-center">
+            <div class="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-autosol-border border-t-autosol-primary"></div>
+            <p class="text-sm text-autosol-accent">Iniciando verificacion segura...</p>
           </div>
 
-          <!-- View: Token Error (Missing or Invalid) -->
-          <div id="view-token-error" class="hidden text-center py-6">
-            <div class="w-14 h-14 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <i data-lucide-link-2 class="w-7 h-7"></i>
+          <div id="view-token-error" class="hidden py-10 text-center">
+            <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-amber-50 text-amber-700">
+              <i data-lucide="link-2" class="h-7 w-7"></i>
             </div>
-            <h2 id="token-error-title" class="font-display font-semibold text-xl text-autosol-dark mb-2">Enlace incompleto</h2>
-            <p id="token-error-desc" class="text-sm text-autosol-accent max-w-sm mx-auto mb-6">El enlace de validación no contiene un identificador único de cliente.</p>
-
-            <div class="mb-6 p-5 bg-autosol-light/60 border border-autosol-border rounded-xl text-left max-w-sm mx-auto space-y-3">
-              <p class="text-xs font-bold text-autosol-primary uppercase tracking-widest flex items-center gap-1.5">
-                <i data-lucide-phone-call class="w-3.5 h-3.5"></i>
-                Centro de atención
-              </p>
-              <p class="text-[11px] text-autosol-accent">Si llegó aquí sin un enlace válido, solicite a su asesor o al equipo de atención al cliente un nuevo acceso personalizado.</p>
-            </div>
-
-            <div class="border-t border-autosol-border pt-4 text-xs text-autosol-accent">
-              <span class="font-semibold text-autosol-dark">Autosol CC:</span> +54 (387) 426-3000
+            <h2 id="token-error-title" class="mb-2 font-display text-2xl font-semibold">Enlace incompleto</h2>
+            <p id="token-error-desc" class="mx-auto mb-6 max-w-md text-sm text-autosol-accent">El enlace de validacion no contiene un identificador unico de cliente.</p>
+            <div class="mx-auto max-w-md rounded-2xl border border-autosol-border bg-autosol-light/50 p-5 text-left text-sm text-autosol-accent">
+              Solicite a su asesor o al equipo de atencion al cliente un nuevo acceso personalizado.
             </div>
           </div>
 
-          <!-- View: Step 1 - DNI Validation -->
           <div id="view-step-validation" class="hidden">
-            <div class="mb-6 rounded-2xl border border-autosol-border bg-[linear-gradient(135deg,#faf9f4_0%,#f1f0e8_100%)] p-5 shadow-sm">
-              <p class="text-[10px] font-bold uppercase tracking-[0.28em] text-autosol-primary">Verificación oficial</p>
-              <h2 class="mt-2 font-display text-2xl font-semibold text-autosol-dark">Validación de identidad</h2>
-              <p class="mt-2 text-sm leading-relaxed text-autosol-accent">Este formulario le permitirá confirmar la información de su suscripción. El proceso es breve, seguro y solo puede completarse desde su enlace personalizado.</p>
+            <div class="mb-6 rounded-2xl border border-autosol-border bg-[linear-gradient(135deg,#faf9f4_0%,#f1f0e8_100%)] p-5">
+              <p class="text-[10px] font-bold uppercase tracking-[0.28em] text-autosol-primary">Verificacion oficial</p>
+              <h2 class="mt-2 font-display text-2xl font-semibold">Validacion de identidad</h2>
+              <p class="mt-2 text-sm leading-relaxed text-autosol-accent">Este formulario permite confirmar la informacion de su suscripcion. El proceso es breve, seguro y solo puede completarse desde su enlace personalizado.</p>
             </div>
-            <div class="text-center mb-6">
-              <div class="w-12 h-12 bg-autosol-light text-autosol-primary rounded-xl flex items-center justify-center mx-auto mb-3">
-                <i data-lucide-fingerprint class="w-6 h-6"></i>
-              </div>
-              <h2 class="font-display font-semibold text-xl text-autosol-dark">Validación de identidad</h2>
-              <p class="text-xs text-autosol-accent mt-1 max-w-sm mx-auto">Para continuar, ingrese su DNI. Este dato se utilizará de forma segura y confidencial para confirmar que coincide con la suscripción registrada.</p>
-            </div>
-
-            <form id="form-validation" onsubmit="validateDni(event)" class="space-y-4">
+            <form id="form-validation" class="space-y-4" onsubmit="validateDni(event)">
               <div>
-                <label for="input-dni" class="block text-xs font-semibold text-autosol-accent uppercase tracking-wider mb-1.5">Documento de Identidad (DNI)</label>
-                <div class="relative">
-                  <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                    <i data-lucide-user class="h-4.5 w-4.5 text-autosol-accent"></i>
-                  </div>
-                  <input
-                    type="text"
-                    id="input-dni"
-                    pattern="[0-9]{7,8}"
-                    required
-                    inputmode="numeric"
-                    placeholder="Solo números (ej. 32456789)"
-                    class="block w-full pl-10 pr-4 py-3 bg-autosol-light border border-autosol-border rounded-xl text-sm placeholder-autosol-accent/60 text-autosol-dark focus:outline-none focus:ring-2 focus:ring-autosol-primary/20 focus:border-autosol-primary font-mono transition"
-                  />
-                </div>
-                <p class="text-[10px] text-autosol-accent mt-1.5 flex gap-1 items-center">
-                  <i data-lucide-lock class="w-3 h-3"></i>
-                  Su documento se procesa de forma protegida y no se expone en texto plano.
-                </p>
+                <label for="input-dni" class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.18em] text-autosol-accent">Documento de identidad</label>
+                <input id="input-dni" type="text" inputmode="numeric" pattern="[0-9]{7,8}" required placeholder="Solo numeros" class="block w-full rounded-xl border border-autosol-border bg-autosol-light px-4 py-3 text-sm text-autosol-dark outline-none transition focus:border-autosol-primary focus:ring-2 focus:ring-autosol-primary/15" />
+                <p class="mt-1.5 text-[11px] text-autosol-accent">Su DNI se procesa de forma protegida.</p>
               </div>
-
-              <button
-                type="submit"
-                id="btn-validate-submit"
-                class="w-full flex items-center justify-center gap-2 py-3.5 bg-autosol-primary hover:bg-[#484833] text-white font-semibold text-sm rounded-xl transition cursor-pointer shadow-md shadow-stone-200 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <span>Validar y Continuar</span>
-                <i data-lucide-arrow-right class="w-4 h-4"></i>
-              </button>
+              <button id="btn-validate-submit" type="submit" class="w-full rounded-xl bg-autosol-primary px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#4c4c37]">Validar y continuar</button>
             </form>
           </div>
 
-          <!-- View: Survey Loading (Validating / Submitting transitions) -->
-          <div id="view-loading-overlay" class="hidden flex flex-col items-center py-12">
-            <div class="relative flex items-center justify-center">
-              <div class="animate-ping absolute inline-flex h-12 w-12 rounded-full bg-autosol-primary/10 opacity-75"></div>
-              <div class="animate-spin rounded-full h-8 w-8 border-3 border-autosol-light border-t-autosol-primary"></div>
-            </div>
-            <p id="loading-overlay-text" class="text-sm font-medium text-autosol-accent mt-6">Validando datos con el servidor...</p>
+          <div id="view-loading-overlay" class="hidden py-12 text-center">
+            <div class="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-autosol-border border-t-autosol-primary"></div>
+            <p id="loading-overlay-text" class="text-sm text-autosol-accent">Procesando...</p>
           </div>
 
-          <!-- Active Survey Step Wrapper -->
           <div id="survey-questions-container" class="hidden">
-            
-            <!-- STEP 2: Información del Plan -->
             <div id="step-panel-2" class="hidden space-y-5">
-              <!-- Personalized Welcome Badge -->
-              <div class="p-4 bg-autosol-light/60 border border-autosol-border rounded-xl space-y-2 text-xs">
-                <div class="flex justify-between items-center border-b border-autosol-border pb-2">
-                  <span class="font-bold text-autosol-accent uppercase tracking-widest text-[10px]">Datos de Suscripción</span>
-                  <span class="px-2 py-0.5 bg-autosol-primary/10 text-autosol-primary font-bold rounded">AUTOSOL</span>
-                </div>
-                <div class="grid grid-cols-2 gap-y-1.5 gap-x-2 pt-1 font-medium">
-                  <div class="text-autosol-accent">Suscriptor:</div>
-                  <div id="client-badge-name" class="text-autosol-dark font-semibold text-right">Cargando...</div>
-                  <div class="text-autosol-accent">Modelo suscrito:</div>
-                  <div id="client-badge-model" class="text-autosol-dark text-right">Cargando...</div>
-                  <div class="text-autosol-accent">Asesor Comercial:</div>
-                  <div id="client-badge-advisor" class="text-autosol-dark text-right">Cargando...</div>
+              <div class="rounded-2xl border border-autosol-border bg-autosol-light/50 p-4 text-sm">
+                <div class="grid gap-2 md:grid-cols-2">
+                  <div><span class="font-semibold text-autosol-accent">Cliente:</span> <span id="client-badge-name">-</span></div>
+                  <div><span class="font-semibold text-autosol-accent">Modelo:</span> <span id="client-badge-model">-</span></div>
+                  <div><span class="font-semibold text-autosol-accent">Asesor comercial:</span> <span id="client-badge-advisor">-</span></div>
+                  <div><span class="font-semibold text-autosol-accent">Monto estimado cuota 2:</span> <span id="client-badge-quote">-</span></div>
                 </div>
               </div>
-
-              <!-- Question Group -->
               <div class="space-y-4">
-                <!-- Q1 -->
                 <div class="space-y-2">
-                  <p class="text-sm font-semibold text-autosol-dark">1. Le informaron que accedió al plan de <span id="span-modelo" class="text-autosol-primary font-semibold">...</span>, mediante el cual financia un porcentaje del valor del vehículo. ¿Ya contaba con esa información?</p>
-                  <div class="grid grid-cols-1 gap-2">
-                    <label class="chip-option">
-                      <input type="radio" name="q1" value="S�" required />
-                      <span>S�</span>
-                    </label>
-                    <label class="chip-option">
-                      <input type="radio" name="q1" value="No" />
-                      <span>No</span>
-                    </label>
-                    <label class="chip-option">
-                      <input type="radio" name="q1" value="No estoy seguro/a" />
-                      <span>No estoy seguro/a</span>
-                    </label>
+                  <p class="text-sm font-semibold">1. Le informaron que accedio al plan de <span id="span-modelo" class="text-autosol-primary">...</span>, mediante el cual financia un porcentaje del valor del vehiculo. Ya contaba con esa informacion?</p>
+                  <div class="grid gap-2">
+                    <label class="chip-option"><input type="radio" name="q1" value="Si" required /><span>Si</span></label>
+                    <label class="chip-option"><input type="radio" name="q1" value="No" /><span>No</span></label>
+                    <label class="chip-option"><input type="radio" name="q1" value="No estoy seguro/a" /><span>No estoy seguro/a</span></label>
                   </div>
                 </div>
-
-                <!-- Q2 -->
-                <div class="space-y-2 pt-2 border-t border-autosol-border">
-                  <p class="text-sm font-semibold text-autosol-dark">2. ¿Le informaron que puede licitar a partir de la cuota 2?</p>
+                <div class="space-y-2 border-t border-autosol-border pt-3">
+                  <p class="text-sm font-semibold">2. Le informaron que puede licitar a partir de la cuota 2?</p>
                   <div class="grid grid-cols-3 gap-2">
-                    <label class="chip-option-small">
-                      <input type="radio" name="q2" value="S�" required />
-                      <span>S�</span>
-                    </label>
-                    <label class="chip-option-small">
-                      <input type="radio" name="q2" value="No" />
-                      <span>No</span>
-                    </label>
-                    <label class="chip-option-small">
-                      <input type="radio" name="q2" value="No recuerdo" />
-                      <span>No recuerdo</span>
-                    </label>
+                    <label class="chip-option-small"><input type="radio" name="q2" value="Si" required /><span>Si</span></label>
+                    <label class="chip-option-small"><input type="radio" name="q2" value="No" /><span>No</span></label>
+                    <label class="chip-option-small"><input type="radio" name="q2" value="No recuerdo" /><span>No recuerdo</span></label>
                   </div>
                 </div>
-
-                <!-- Q3 -->
-                <div class="space-y-2 pt-2 border-t border-autosol-border">
-                  <p class="text-sm font-semibold text-autosol-dark">3. ¿Le informaron que su plan puede incluir adjudicación asegurada en cuota 8, 12 o 24, según corresponda?</p>
+                <div class="space-y-2 border-t border-autosol-border pt-3">
+                  <p class="text-sm font-semibold">3. Le informaron que su plan puede incluir adjudicacion asegurada en cuota 8, 12 o 24, segun corresponda?</p>
                   <div class="grid grid-cols-3 gap-2">
-                    <label class="chip-option-small">
-                      <input type="radio" name="q3" value="S�" required />
-                      <span>S�</span>
-                    </label>
-                    <label class="chip-option-small">
-                      <input type="radio" name="q3" value="No" />
-                      <span>No</span>
-                    </label>
-                    <label class="chip-option-small">
-                      <input type="radio" name="q3" value="No recuerdo" />
-                      <span>No recuerdo</span>
-                    </label>
+                    <label class="chip-option-small"><input type="radio" name="q3" value="Si" required /><span>Si</span></label>
+                    <label class="chip-option-small"><input type="radio" name="q3" value="No" /><span>No</span></label>
+                    <label class="chip-option-small"><input type="radio" name="q3" value="No recuerdo" /><span>No recuerdo</span></label>
                   </div>
                 </div>
-
-                <!-- Q4 -->
-                <div class="space-y-2 pt-2 border-t border-autosol-border">
-                  <p class="text-sm font-semibold text-autosol-dark">4. ¿Su asesor le explicó la diferencia entre licitar y adjudicar?</p>
+                <div class="space-y-2 border-t border-autosol-border pt-3">
+                  <p class="text-sm font-semibold">4. Su asesor le explico la diferencia entre licitar y adjudicar?</p>
                   <div class="grid grid-cols-3 gap-2">
-                    <label class="chip-option-small">
-                      <input type="radio" name="q4" value="S�" required />
-                      <span>S�</span>
-                    </label>
-                    <label class="chip-option-small">
-                      <input type="radio" name="q4" value="No" />
-                      <span>No</span>
-                    </label>
-                    <label class="chip-option-small">
-                      <input type="radio" name="q4" value="Parcialmente" />
-                      <span>Parcial</span>
-                    </label>
+                    <label class="chip-option-small"><input type="radio" name="q4" value="Si" required /><span>Si</span></label>
+                    <label class="chip-option-small"><input type="radio" name="q4" value="No" /><span>No</span></label>
+                    <label class="chip-option-small"><input type="radio" name="q4" value="Parcialmente" /><span>Parcialmente</span></label>
                   </div>
                 </div>
               </div>
             </div>
 
-            <!-- STEP 3: Cuotas y pagos -->
             <div id="step-panel-3" class="hidden space-y-5">
-              <!-- Info Block: Cuota 2 Base -->
-              <div class="p-3.5 bg-autosol-light/60 border border-autosol-border rounded-xl flex justify-between items-center text-xs">
-                <span class="font-medium text-autosol-accent">Monto estimado de Cuota 2:</span>
-                <span id="client-badge-quote" class="font-semibold text-autosol-dark bg-white px-2.5 py-1 rounded border border-autosol-border font-mono text-sm">...</span>
-              </div>
-
-              <!-- Question Group -->
               <div class="space-y-4">
-                <!-- Q5 -->
                 <div class="space-y-2">
-                  <p class="text-sm font-semibold text-autosol-dark">5. ¿El vendedor le informó el monto estimado de la cuota 2?</p>
+                  <p class="text-sm font-semibold">5. El vendedor le informo el monto estimado de la cuota 2?</p>
                   <div class="grid grid-cols-3 gap-2">
-                    <label class="chip-option-small">
-                      <input type="radio" name="q5" value="S�" required />
-                      <span>S�</span>
-                    </label>
-                    <label class="chip-option-small">
-                      <input type="radio" name="q5" value="No" />
-                      <span>No</span>
-                    </label>
-                    <label class="chip-option-small">
-                      <input type="radio" name="q5" value="No recuerdo" />
-                      <span>No recuerdo</span>
-                    </label>
+                    <label class="chip-option-small"><input type="radio" name="q5" value="Si" required /><span>Si</span></label>
+                    <label class="chip-option-small"><input type="radio" name="q5" value="No" /><span>No</span></label>
+                    <label class="chip-option-small"><input type="radio" name="q5" value="No recuerdo" /><span>No recuerdo</span></label>
                   </div>
                 </div>
-
-                <!-- Q6 -->
-                <div class="space-y-1.5 pt-2 border-t border-autosol-border">
-                  <label for="input-q6" class="block text-sm font-semibold text-autosol-dark">6. ¿Cuánto pagó en la primera cuota y por qué medio la pagó? *</label>
-                  <input
-                    type="text"
-                    id="input-q6"
-                    required
-                    placeholder="Ej: Pagué $130.000 con tarjeta de crédito"
-                    class="block w-full px-3 py-2.5 bg-autosol-light/40 border border-autosol-border rounded-xl text-sm text-autosol-dark placeholder-autosol-accent/50 focus:outline-none focus:ring-2 focus:ring-autosol-primary/20 focus:border-autosol-primary transition"
-                  />
+                <div class="space-y-1.5 border-t border-autosol-border pt-3">
+                  <label for="input-q6" class="block text-sm font-semibold">6. Cuanto pago en la primera cuota y por que medio la pago? *</label>
+                  <input id="input-q6" type="text" required class="block w-full rounded-xl border border-autosol-border bg-autosol-light/40 px-3 py-2.5 text-sm outline-none focus:border-autosol-primary focus:ring-2 focus:ring-autosol-primary/15" placeholder="Ej: Pague $130.000 con tarjeta" />
                 </div>
-
-                <!-- Q7 -->
-                <div class="space-y-1.5 pt-2 border-t border-autosol-border">
-                  <label for="input-q7" class="block text-sm font-semibold text-autosol-dark">7. ¿Cuándo pagó la primera cuota? *</label>
-                  <input
-                    type="text"
-                    id="input-q7"
-                    required
-                    placeholder="Ej: 15 de Junio o seleccionar fecha"
-                    class="block w-full px-3 py-2.5 bg-autosol-light/40 border border-autosol-border rounded-xl text-sm text-autosol-dark placeholder-autosol-accent/50 focus:outline-none focus:ring-2 focus:ring-autosol-primary/20 focus:border-autosol-primary transition"
-                  />
+                <div class="space-y-1.5 border-t border-autosol-border pt-3">
+                  <label for="input-q7" class="block text-sm font-semibold">7. Cuando pago la primera cuota? *</label>
+                  <input id="input-q7" type="text" required class="block w-full rounded-xl border border-autosol-border bg-autosol-light/40 px-3 py-2.5 text-sm outline-none focus:border-autosol-primary focus:ring-2 focus:ring-autosol-primary/15" placeholder="Ej: 15/06/2026" />
                 </div>
-
-                <!-- Q8 -->
-                <div class="space-y-2 pt-2 border-t border-autosol-border">
-                  <p class="text-sm font-semibold text-autosol-dark">8. ¿Cómo seguirá pagando su plan? *</p>
-                  <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    <label class="chip-option">
-                      <input type="radio" name="q8" value="t. credito" required onclick="toggleDebitQuestions(true)" />
-                      <span>D�bito Autom�tico (Tarjeta de Cr�dito)</span>
-                    </label>
-                    <label class="chip-option">
-                      <input type="radio" name="q8" value="t. debito" onclick="toggleDebitQuestions(true)" />
-                      <span>D�bito Autom�tico (Tarjeta de D�bito)</span>
-                    </label>
-                    <label class="chip-option">
-                      <input type="radio" name="q8" value="debito/ CBU" onclick="toggleDebitQuestions(true)" />
-                      <span>D�bito Autom�tico (CBU / Cuenta)</span>
-                    </label>
-                    <label class="chip-option">
-                      <input type="radio" name="q8" value="transferencia" onclick="toggleDebitQuestions(false)" />
-                      <span>Transferencia Bancaria</span>
-                    </label>
-                    <label class="chip-option">
-                      <input type="radio" name="q8" value="efectivo/cupon" onclick="toggleDebitQuestions(false)" />
-                      <span>Pago en Efectivo / Cup�n de pago</span>
-                    </label>
+                <div class="space-y-2 border-t border-autosol-border pt-3">
+                  <p class="text-sm font-semibold">8. Como seguira pagando su plan? *</p>
+                  <div class="grid gap-2 md:grid-cols-2">
+                    <label class="chip-option"><input type="radio" name="q8" value="t. credito" required onclick="toggleDebitQuestions(true)" /><span>Debito Automatico (Tarjeta de Credito)</span></label>
+                    <label class="chip-option"><input type="radio" name="q8" value="t. debito" onclick="toggleDebitQuestions(true)" /><span>Debito Automatico (Tarjeta de Debito)</span></label>
+                    <label class="chip-option"><input type="radio" name="q8" value="debito/ CBU" onclick="toggleDebitQuestions(true)" /><span>Debito Automatico (CBU / Cuenta)</span></label>
+                    <label class="chip-option"><input type="radio" name="q8" value="transferencia" onclick="toggleDebitQuestions(false)" /><span>Transferencia bancaria</span></label>
+                    <label class="chip-option"><input type="radio" name="q8" value="efectivo/cupon" onclick="toggleDebitQuestions(false)" /><span>Pago en efectivo / cupon</span></label>
                   </div>
                 </div>
-
-                <!-- Conditional Q8b and Q8c (Show if Q8 is D�bito Autom�tico) -->
-                <div id="debit-conditional-fields" class="hidden p-4 bg-autosol-light/30 rounded-xl border border-autosol-border space-y-4 pt-4 mt-2">
+                <div id="debit-conditional-fields" class="hidden space-y-4 rounded-2xl border border-autosol-border bg-autosol-light/30 p-4">
                   <div class="space-y-2">
-                    <p class="text-xs font-semibold text-autosol-primary uppercase tracking-widest flex items-center gap-1">
-                      <i data-lucide-credit-card class="w-3.5 h-3.5"></i>
-                      Informaci�n de D�bito Autom�tico
-                    </p>
-                    <p class="text-sm font-semibold text-autosol-dark">8.b ¿Le hicieron firmar el anexo de alta de débito automático o sabe que está incluido en su contrato?</p>
+                    <p class="text-xs font-semibold uppercase tracking-[0.24em] text-autosol-primary">Informacion de debito automatico</p>
+                    <p class="text-sm font-semibold">8.b Le hicieron firmar el anexo de alta de debito automatico o sabe que esta incluido en su contrato?</p>
                     <div class="grid grid-cols-3 gap-2">
-                      <label class="chip-option-small">
-                        <input type="radio" name="q8b" value="S�" />
-                        <span>S�</span>
-                      </label>
-                      <label class="chip-option-small">
-                        <input type="radio" name="q8b" value="No" />
-                        <span>No</span>
-                      </label>
-                      <label class="chip-option-small">
-                        <input type="radio" name="q8b" value="No recuerdo" />
-                        <span>No recuerda</span>
-                      </label>
+                      <label class="chip-option-small"><input type="radio" name="q8b" value="Si" /><span>Si</span></label>
+                      <label class="chip-option-small"><input type="radio" name="q8b" value="No" /><span>No</span></label>
+                      <label class="chip-option-small"><input type="radio" name="q8b" value="No recuerda" /><span>No recuerda</span></label>
                     </div>
                   </div>
-
-                  <div class="space-y-2 pt-2 border-t border-autosol-border">
-                    <p class="text-sm font-semibold text-autosol-dark">8.c ¿Entendió cómo funciona y que la permanencia mínima es hasta cuota 6?</p>
+                  <div class="space-y-2 border-t border-autosol-border pt-3">
+                    <p class="text-sm font-semibold">8.c Entendio como funciona y que la permanencia minima es hasta cuota 6?</p>
                     <div class="grid grid-cols-3 gap-2">
-                      <label class="chip-option-small">
-                        <input type="radio" name="q8c" value="S�" />
-                        <span>S�</span>
-                      </label>
-                      <label class="chip-option-small">
-                        <input type="radio" name="q8c" value="No" />
-                        <span>No</span>
-                      </label>
-                      <label class="chip-option-small">
-                        <input type="radio" name="q8c" value="Parcialmente" />
-                        <span>Parcial</span>
-                      </label>
+                      <label class="chip-option-small"><input type="radio" name="q8c" value="Si" /><span>Si</span></label>
+                      <label class="chip-option-small"><input type="radio" name="q8c" value="No" /><span>No</span></label>
+                      <label class="chip-option-small"><input type="radio" name="q8c" value="Parcialmente" /><span>Parcialmente</span></label>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            <!-- STEP 4: Vendedor -->
             <div id="step-panel-4" class="hidden space-y-5">
               <div class="space-y-4">
-                <!-- Q9 -->
                 <div class="space-y-1.5">
-                  <label for="input-q9" class="block text-sm font-semibold text-autosol-dark">9. ¿Quién es su vendedor? *</label>
-                  <select
-                    id="input-q9"
-                    required
-                    class="block w-full px-3 py-2.5 bg-white border border-autosol-border rounded-xl text-sm text-autosol-dark focus:outline-none focus:ring-2 focus:ring-autosol-primary/20 focus:border-autosol-primary transition cursor-pointer"
-                  >
+                  <label for="input-q9" class="block text-sm font-semibold">9. Quien es su vendedor? *</label>
+                  <select id="input-q9" required class="block w-full rounded-xl border border-autosol-border bg-white px-3 py-2.5 text-sm outline-none focus:border-autosol-primary focus:ring-2 focus:ring-autosol-primary/15">
                     <option value="" disabled selected>Seleccione su vendedor</option>
                   </select>
-                  
-                  <div id="wrapper-q9-otro" class="hidden mt-2 space-y-1 bg-autosol-light/30 p-3 rounded-lg border border-autosol-border">
-                    <label for="input-q9-otro" class="block text-xs font-semibold text-autosol-dark uppercase tracking-wider">Escriba el nombre de su vendedor:</label>
-                    <input
-                      type="text"
-                      id="input-q9-otro"
-                      placeholder="Escriba aquí el nombre del vendedor"
-                      class="block w-full px-3 py-2 bg-white border border-autosol-border rounded-xl text-sm text-autosol-dark placeholder-autosol-accent/50 focus:outline-none focus:ring-2 focus:ring-autosol-primary/20 focus:border-autosol-primary transition"
-                    />
+                  <div id="wrapper-q9-otro" class="hidden space-y-1 rounded-xl border border-autosol-border bg-autosol-light/30 p-3">
+                    <label for="input-q9-otro" class="text-xs font-semibold uppercase tracking-[0.18em] text-autosol-accent">Escriba el nombre de su vendedor</label>
+                    <input id="input-q9-otro" type="text" class="block w-full rounded-xl border border-autosol-border bg-white px-3 py-2 text-sm outline-none focus:border-autosol-primary focus:ring-2 focus:ring-autosol-primary/15" />
                   </div>
                 </div>
-
-                <!-- Q10 -->
-                <div class="space-y-2 pt-2 border-t border-autosol-border">
-                  <p class="text-sm font-semibold text-autosol-dark">10. ¿Cómo califica de 1 a 5 la atención y amabilidad del vendedor?</p>
+                <div class="space-y-2 border-t border-autosol-border pt-3">
+                  <p class="text-sm font-semibold">10. Como califica de 1 a 5 la atencion y amabilidad del vendedor?</p>
                   <div class="grid grid-cols-5 gap-2">
-                    <label class="chip-option-small">
-                      <input type="radio" name="q10" value="1" required />
-                      <span class="font-mono">1</span>
-                    </label>
-                    <label class="chip-option-small">
-                      <input type="radio" name="q10" value="2" />
-                      <span class="font-mono">2</span>
-                    </label>
-                    <label class="chip-option-small">
-                      <input type="radio" name="q10" value="3" />
-                      <span class="font-mono">3</span>
-                    </label>
-                    <label class="chip-option-small">
-                      <input type="radio" name="q10" value="4" />
-                      <span class="font-mono">4</span>
-                    </label>
-                    <label class="chip-option-small">
-                      <input type="radio" name="q10" value="5" />
-                      <span class="font-mono">5</span>
-                    </label>
+                    <label class="chip-option-small"><input type="radio" name="q10" value="1" required /><span>1</span></label>
+                    <label class="chip-option-small"><input type="radio" name="q10" value="2" /><span>2</span></label>
+                    <label class="chip-option-small"><input type="radio" name="q10" value="3" /><span>3</span></label>
+                    <label class="chip-option-small"><input type="radio" name="q10" value="4" /><span>4</span></label>
+                    <label class="chip-option-small"><input type="radio" name="q10" value="5" /><span>5</span></label>
                   </div>
                 </div>
-
-                <!-- Q11 -->
-                <div class="space-y-2 pt-2 border-t border-autosol-border">
-                  <p class="text-sm font-semibold text-autosol-dark">11. ¿El vendedor supo explicar características específicas de la unidad?</p>
-                  <div class="grid grid-cols-2 gap-2">
-                    <label class="chip-option">
-                      <input type="radio" name="q11" value="S�" required />
-                      <span>S�</span>
-                    </label>
-                    <label class="chip-option">
-                      <input type="radio" name="q11" value="No" />
-                      <span>No</span>
-                    </label>
-                    <label class="chip-option">
-                      <input type="radio" name="q11" value="Parcialmente" />
-                      <span>Parcialmente</span>
-                    </label>
-                    <label class="chip-option">
-                      <input type="radio" name="q11" value="No corresponde / no recuerdo" />
-                      <span>No corresponde / no recuerdo</span>
-                    </label>
+                <div class="space-y-2 border-t border-autosol-border pt-3">
+                  <p class="text-sm font-semibold">11. El vendedor supo explicar caracteristicas especificas de la unidad?</p>
+                  <div class="grid gap-2 md:grid-cols-2">
+                    <label class="chip-option"><input type="radio" name="q11" value="Si" required /><span>Si</span></label>
+                    <label class="chip-option"><input type="radio" name="q11" value="No" /><span>No</span></label>
+                    <label class="chip-option"><input type="radio" name="q11" value="Parcialmente" /><span>Parcialmente</span></label>
+                    <label class="chip-option"><input type="radio" name="q11" value="No corresponde / no recuerdo" /><span>No corresponde / no recuerdo</span></label>
                   </div>
                 </div>
               </div>
             </div>
 
-            <!-- STEP 5: Otros datos -->
             <div id="step-panel-5" class="hidden space-y-5">
               <div class="space-y-4">
-                <!-- Q12 -->
                 <div class="space-y-1.5">
-                  <label for="input-q12" class="block text-sm font-semibold text-autosol-dark">12. ¿Estuvo pagando algún otro plan de ahorro de un 0 km recientemente? ¿De qué marca? ¿Hasta qué mes pagó? *</label>
-                  <input
-                    type="text"
-                    id="input-q12"
-                    required
-                    placeholder="Ej: No, ninguno. / Sí, un Fiat hasta marzo de 2026"
-                    class="block w-full px-3 py-2.5 bg-autosol-light/40 border border-autosol-border rounded-xl text-sm text-autosol-dark placeholder-autosol-accent/50 focus:outline-none focus:ring-2 focus:ring-autosol-primary/20 focus:border-autosol-primary transition"
-                  />
+                  <label for="input-q12" class="block text-sm font-semibold">12. Estuvo pagando algun otro plan de ahorro de un 0 km recientemente? De que marca? Hasta que mes pago? *</label>
+                  <input id="input-q12" type="text" required class="block w-full rounded-xl border border-autosol-border bg-autosol-light/40 px-3 py-2.5 text-sm outline-none focus:border-autosol-primary focus:ring-2 focus:ring-autosol-primary/15" placeholder="Ej: No, ninguno. / Si, un Fiat hasta marzo de 2026" />
                 </div>
-
-                <!-- Q13 -->
-                <div class="space-y-2 pt-2 border-t border-autosol-border">
-                  <p class="text-sm font-semibold text-autosol-dark">13. ¿Tiene un vehículo usado para entregar como parte de pago?</p>
+                <div class="space-y-2 border-t border-autosol-border pt-3">
+                  <p class="text-sm font-semibold">13. Tiene un vehiculo usado para entregar como parte de pago?</p>
                   <div class="grid grid-cols-3 gap-2">
-                    <label class="chip-option-small">
-                      <input type="radio" name="q13" value="S�" required onclick="toggleUsedVehicleField(true)" />
-                      <span>S�</span>
-                    </label>
-                    <label class="chip-option-small">
-                      <input type="radio" name="q13" value="No" onclick="toggleUsedVehicleField(false)" />
-                      <span>No</span>
-                    </label>
-                    <label class="chip-option-small">
-                      <input type="radio" name="q13" value="A�n no sabe" onclick="toggleUsedVehicleField(false)" />
-                      <span>A�n no sabe</span>
-                    </label>
+                    <label class="chip-option-small"><input type="radio" name="q13" value="Si" required onclick="toggleUsedVehicleField(true)" /><span>Si</span></label>
+                    <label class="chip-option-small"><input type="radio" name="q13" value="No" onclick="toggleUsedVehicleField(false)" /><span>No</span></label>
+                    <label class="chip-option-small"><input type="radio" name="q13" value="Aun no sabe" onclick="toggleUsedVehicleField(false)" /><span>Aun no sabe</span></label>
                   </div>
                 </div>
-
-                <!-- Conditional Q13a -->
-                <div id="used-vehicle-conditional" class="hidden space-y-1.5 p-3.5 bg-autosol-light/30 border border-autosol-border rounded-xl">
-                  <label for="input-q13a" class="block text-xs font-semibold text-autosol-accent uppercase tracking-widest mb-1">Especifique el Veh�culo Usado *</label>
-                  <input
-                    type="text"
-                    id="input-q13a"
-                    placeholder="Ej: Gol Trend 2018, 85.000 km, buen estado"
-                    class="block w-full px-3 py-2 bg-white border border-autosol-border rounded-lg text-sm text-autosol-dark focus:outline-none focus:ring-2 focus:ring-autosol-primary/20 focus:border-autosol-primary transition"
-                  />
+                <div id="used-vehicle-conditional" class="hidden space-y-1.5 rounded-xl border border-autosol-border bg-autosol-light/30 p-3.5">
+                  <label for="input-q13a" class="text-xs font-semibold uppercase tracking-[0.18em] text-autosol-accent">Especifique el vehiculo usado *</label>
+                  <input id="input-q13a" type="text" class="block w-full rounded-xl border border-autosol-border bg-white px-3 py-2 text-sm outline-none focus:border-autosol-primary focus:ring-2 focus:ring-autosol-primary/15" placeholder="Ej: Gol Trend 2018, 85.000 km" />
                 </div>
-
-                <!-- Q14 -->
-                <div class="space-y-2 pt-2 border-t border-autosol-border">
-                  <p class="text-sm font-semibold text-autosol-dark">14. ¿Cómo conoció la propuesta? *</p>
-                  <div class="grid grid-cols-2 gap-2">
-                    <label class="chip-option">
-                      <input type="radio" name="q14" value="Redes sociales" required />
-                      <span>Redes sociales</span>
-                    </label>
-                    <label class="chip-option">
-                      <input type="radio" name="q14" value="Referido" />
-                      <span>Referido</span>
-                    </label>
-                    <label class="chip-option">
-                      <input type="radio" name="q14" value="Asesor / vendedor" />
-                      <span>Asesor / vendedor</span>
-                    </label>
-                    <label class="chip-option">
-                      <input type="radio" name="q14" value="Local comercial" />
-                      <span>Local comercial</span>
-                    </label>
-                    <label class="chip-option">
-                      <input type="radio" name="q14" value="WhatsApp" />
-                      <span>WhatsApp</span>
-                    </label>
-                    <label class="chip-option">
-                      <input type="radio" name="q14" value="Web" />
-                      <span>Web</span>
-                    </label>
-                    <label class="chip-option col-span-2">
-                      <input type="radio" name="q14" value="Otro" />
-                      <span>Otro medio / publicidad p�blica</span>
-                    </label>
+                <div class="space-y-2 border-t border-autosol-border pt-3">
+                  <p class="text-sm font-semibold">14. Como conocio la propuesta? *</p>
+                  <div class="grid gap-2 md:grid-cols-2">
+                    <label class="chip-option"><input type="radio" name="q14" value="Redes sociales" required /><span>Redes sociales</span></label>
+                    <label class="chip-option"><input type="radio" name="q14" value="Referido" /><span>Referido</span></label>
+                    <label class="chip-option"><input type="radio" name="q14" value="Asesor / vendedor" /><span>Asesor / vendedor</span></label>
+                    <label class="chip-option"><input type="radio" name="q14" value="Local comercial" /><span>Local comercial</span></label>
+                    <label class="chip-option"><input type="radio" name="q14" value="WhatsApp" /><span>WhatsApp</span></label>
+                    <label class="chip-option"><input type="radio" name="q14" value="Web" /><span>Web</span></label>
+                    <label class="chip-option md:col-span-2"><input type="radio" name="q14" value="Otro" /><span>Otro medio / publicidad publica</span></label>
                   </div>
                 </div>
-
-                <!-- Q15 -->
-                <div class="space-y-2 pt-2 border-t border-autosol-border">
-                  <p class="text-sm font-semibold text-autosol-dark">15. ¿Recibió algún beneficio o regalo por haberse suscripto?</p>
-                  <div class="grid grid-cols-1 gap-2">
-                    <label class="chip-option">
-                      <input type="radio" name="q15" value="S�" required onclick="toggleBenefitField(true)" />
-                      <span>S�</span>
-                    </label>
-                    <label class="chip-option">
-                      <input type="radio" name="q15" value="No" onclick="toggleBenefitField(false)" />
-                      <span>No</span>
-                    </label>
-                    <label class="chip-option">
-                      <input type="radio" name="q15" value="Se lo prometieron pero no lo recibi�" onclick="toggleBenefitField(true)" />
-                      <span>Se lo prometieron pero no lo recibi�</span>
-                    </label>
-                    <label class="chip-option">
-                      <input type="radio" name="q15" value="No recuerda" onclick="toggleBenefitField(false)" />
-                      <span>No recuerda</span>
-                    </label>
+                <div class="space-y-2 border-t border-autosol-border pt-3">
+                  <p class="text-sm font-semibold">15. Recibio algun beneficio o regalo por haberse suscripto?</p>
+                  <div class="grid gap-2">
+                    <label class="chip-option"><input type="radio" name="q15" value="Si" required onclick="toggleBenefitField(true)" /><span>Si</span></label>
+                    <label class="chip-option"><input type="radio" name="q15" value="No" onclick="toggleBenefitField(false)" /><span>No</span></label>
+                    <label class="chip-option"><input type="radio" name="q15" value="Se lo prometieron pero no lo recibio" onclick="toggleBenefitField(true)" /><span>Se lo prometieron pero no lo recibio</span></label>
+                    <label class="chip-option"><input type="radio" name="q15" value="No recuerda" onclick="toggleBenefitField(false)" /><span>No recuerda</span></label>
                   </div>
                 </div>
-
-                <!-- Conditional Q15a -->
-                <div id="benefit-conditional" class="hidden space-y-1.5 p-3.5 bg-autosol-light/30 border border-autosol-border rounded-xl">
-                  <label for="input-q15a" class="block text-xs font-semibold text-autosol-accent uppercase tracking-widest mb-1">Detalle del beneficio o regalo *</label>
-                  <input
-                    type="text"
-                    id="input-q15a"
-                    placeholder="Ej: Bonificación de la suscripción / Kit de seguridad"
-                    class="block w-full px-3 py-2 bg-white border border-autosol-border rounded-lg text-sm text-autosol-dark focus:outline-none focus:ring-2 focus:ring-autosol-primary/20 focus:border-autosol-primary transition"
-                  />
+                <div id="benefit-conditional" class="hidden space-y-1.5 rounded-xl border border-autosol-border bg-autosol-light/30 p-3.5">
+                  <label for="input-q15a" class="text-xs font-semibold uppercase tracking-[0.18em] text-autosol-accent">Detalle del beneficio o regalo *</label>
+                  <input id="input-q15a" type="text" class="block w-full rounded-xl border border-autosol-border bg-white px-3 py-2 text-sm outline-none focus:border-autosol-primary focus:ring-2 focus:ring-autosol-primary/15" placeholder="Ej: Patentamiento, kit o bonificacion" />
                 </div>
               </div>
             </div>
 
-            <!-- STEP 6: Observaciones finales -->
             <div id="step-panel-6" class="hidden space-y-5">
-              <div class="rounded-xl border border-autosol-border bg-autosol-light/40 p-4 text-xs text-autosol-accent">
-                Antes de finalizar, puede dejarnos un comentario adicional y confirmar si necesita que lo contactemos.
-              </div>
               <div class="space-y-4">
-                <!-- Q16 -->
                 <div class="space-y-1.5">
-                  <label id="label-q16" for="input-q16" class="block text-sm font-semibold text-autosol-dark">16. ¿Desea agregar alguna observación?</label>
-                  <textarea
-                    id="input-q16"
-                    rows="4"
-                    placeholder="Escriba aquí comentarios, dudas o aclaraciones sobre su suscripción..."
-                    class="block w-full px-3 py-2.5 bg-autosol-light/40 border border-autosol-border rounded-xl text-sm text-autosol-dark placeholder-autosol-accent/50 focus:outline-none focus:ring-2 focus:ring-autosol-primary/20 focus:border-autosol-primary transition resize-none"
-                  ></textarea>
-                  <p id="q16-required-helper" class="hidden text-[10px] text-amber-700 font-medium">Este campo es obligatorio si solicita que un asesor vuelva a contactarlo.</p>
+                  <label id="label-q16" for="input-q16" class="block text-sm font-semibold">16. Desea agregar alguna observacion?</label>
+                  <textarea id="input-q16" rows="4" class="block w-full rounded-xl border border-autosol-border bg-autosol-light/40 px-3 py-2.5 text-sm outline-none focus:border-autosol-primary focus:ring-2 focus:ring-autosol-primary/15" placeholder="Escriba aqui cualquier aclaracion que considere importante"></textarea>
+                  <p id="q16-required-helper" class="hidden text-[11px] text-amber-700">Este campo es obligatorio si solicita que un asesor vuelva a contactarlo.</p>
                 </div>
-
-                <!-- Q17 -->
-                <div class="space-y-2 pt-2 border-t border-autosol-border">
-                  <p class="text-sm font-semibold text-autosol-dark">17. ¿Necesita que un asesor de atención al cliente vuelva a contactarlo?</p>
+                <div class="space-y-2 border-t border-autosol-border pt-3">
+                  <p class="text-sm font-semibold">17. Necesita que un asesor vuelva a contactarlo? *</p>
                   <div class="grid grid-cols-2 gap-2">
-                    <label class="chip-option">
-                      <input type="radio" name="q17" value="Sí" required onclick="toggleObservationsRequired(true)" />
-                      <span>Sí, por favor</span>
-                    </label>
-                    <label class="chip-option">
-                      <input type="radio" name="q17" value="No" onclick="toggleObservationsRequired(false)" />
-                      <span>No hace falta</span>
-                    </label>
+                    <label class="chip-option-small"><input type="radio" name="q17" value="Si" required onclick="toggleObservationsRequired(true)" /><span>Si, por favor</span></label>
+                    <label class="chip-option-small"><input type="radio" name="q17" value="No" onclick="toggleObservationsRequired(false)" /><span>No</span></label>
                   </div>
                 </div>
               </div>
             </div>
 
-            <!-- Navigation Controls -->
-            <div class="flex gap-3 pt-6 border-t border-autosol-border mt-6">
-              <button
-                type="button"
-                id="btn-nav-prev"
-                onclick="navigateStep(-1)"
-                class="flex-1 flex items-center justify-center gap-2 py-3 border border-autosol-border text-autosol-dark font-medium text-sm rounded-xl hover:bg-autosol-light transition cursor-pointer"
-              >
-                <i data-lucide-arrow-left class="w-4 h-4"></i>
-                <span>Atr�s</span>
-              </button>
-              <button
-                type="button"
-                id="btn-nav-next"
-                onclick="navigateStep(1)"
-                class="flex-1 flex items-center justify-center gap-2 py-3 bg-autosol-primary text-white font-semibold text-sm rounded-xl hover:bg-[#484833] transition cursor-pointer shadow-md shadow-stone-100"
-              >
-                <span id="btn-next-text">Siguiente</span>
-                <i data-lucide-arrow-right id="btn-next-icon" class="w-4 h-4"></i>
+            <div class="mt-8 flex items-center justify-between gap-3 border-t border-autosol-border pt-5">
+              <button id="btn-nav-prev" type="button" onclick="navigateStep(-1)" class="rounded-xl border border-autosol-border px-4 py-2.5 text-sm font-semibold text-autosol-dark transition hover:bg-autosol-light">Atras</button>
+              <button id="btn-nav-next" type="button" onclick="navigateStep(1)" class="rounded-xl bg-autosol-primary px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#4c4c37]">
+                <span id="btn-next-text">Continuar</span>
               </button>
             </div>
           </div>
 
-          <!-- View: Final Success Screen -->
-          <div id="view-success" class="hidden text-center py-8">
-            <div class="w-16 h-16 bg-autosol-primary/10 text-autosol-primary rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner animate-bounce">
-              <i data-lucide-check-circle-2 class="w-9 h-9"></i>
+          <div id="view-success" class="hidden py-10 text-center">
+            <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 text-emerald-700">
+              <i data-lucide="badge-check" class="h-8 w-8"></i>
             </div>
-            <h2 class="font-display font-semibold text-2xl text-autosol-dark mb-2">¡Validación registrada!</h2>
-            <p class="text-sm text-autosol-accent max-w-sm mx-auto mb-6 leading-relaxed">Su validaci�n fue registrada correctamente en nuestro sistema central. Agradecemos su tiempo para ayudarnos a mantener la transparencia y seguridad de su Plan de Ahorro Autosol.</p>
-            <div class="p-5 bg-autosol-light/50 border border-autosol-border rounded-xl max-w-sm mx-auto text-left space-y-2.5">
-              <div class="flex items-center gap-2 text-[10px] font-bold text-autosol-accent uppercase tracking-widest border-b border-autosol-border pb-2">
-                <i data-lucide-info class="w-4 h-4 text-autosol-primary"></i>
-                <span>¿Cuáles son los pasos siguientes?</span>
-              </div>
-              <ul class="text-xs text-autosol-dark/90 space-y-2 list-disc list-inside">
-                <li>Un asesor de Autosol auditar� sus respuestas.</li>
-                <li>Su suscripción seguirá el curso formal de activación.</li>
-                <li>Si solicit� contacto, un asesor lo llamar� a la brevedad.</li>
-              </ul>
-            </div>
+            <h2 class="mb-2 font-display text-2xl font-semibold">Validacion completada</h2>
+            <p class="mx-auto mb-6 max-w-lg text-sm leading-relaxed text-autosol-accent">Su validacion fue registrada correctamente en nuestro sistema central. Agradecemos su tiempo para ayudarnos a mantener la transparencia y seguridad de su Plan de Ahorro Autosol.</p>
+            <ul class="mx-auto max-w-md space-y-2 rounded-2xl border border-autosol-border bg-autosol-light/40 p-4 text-left text-sm text-autosol-accent">
+              <li>Un asesor de Autosol auditara sus respuestas.</li>
+              <li>Si corresponde, se revisara internamente la gestion comercial.</li>
+              <li>Si solicito contacto, un asesor lo llamara a la brevedad.</li>
+            </ul>
           </div>
-
         </div>
-      </div>
+      </section>
+
+      <footer class="px-3 py-5 text-center text-[11px] text-autosol-accent">
+        Esta es una plataforma interna de validacion. La informacion enviada se utiliza unicamente para verificar los datos de la suscripcion y dar seguimiento comercial.
+      </footer>
     </main>
 
-    <!-- Footer Security Information -->
-    <footer class="w-full py-8 px-4 bg-white border-t border-autosol-border mt-12 text-center text-xs text-autosol-accent">
-      <div class="max-w-xl mx-auto space-y-2.5">
-        <p class="font-semibold text-autosol-dark">&copy; 2026 Autosol S.A. Concesionario Oficial Volkswagen.</p>
-        <p class="text-[10px] leading-normal px-4">Esta es una plataforma interna de validacion. La informacion enviada se utiliza unicamente para verificar los datos de la suscripcion y dar seguimiento comercial.</p>
-        <div class="flex justify-center items-center gap-4 pt-1.5 text-autosol-accent font-medium">
-          <span class="flex items-center gap-1"><i data-lucide-shield-check class="w-3.5 h-3.5"></i> SSL/TSL 256-bit</span>
-          <span>&middot;</span>
-          <span class="flex items-center gap-1"><i data-lucide-eye-off class="w-3.5 h-3.5"></i> Hashing DNI</span>
-        </div>
-      </div>
-    </footer>
-
-    <!-- App JS Execution Core -->
     <script src="app.js"></script>
   </body>
 </html>
