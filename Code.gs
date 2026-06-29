@@ -29,8 +29,7 @@ function mostrarToast(mensaje) {
 }
 
 function setupInicialDesdeMenu() {
-  setupInicial();
-  mostrarToast("Setup inicial completado.");
+  mostrarToast(setupInicial());
 }
 
 function procesarNuevosIngresosDesdeMenu() {
@@ -110,8 +109,9 @@ function setupInicial() {
   ensureHeaders();
   actualizarCatalogoPreguntas();
   actualizarInstructivoCC();
-  sincronizarSeguimientoCC();
+  reiniciarCursorSincronizacionSeguimiento();
   formatearSeguimientoCC();
+  return "Planilla preparada. Ahora use 'Sincronizar seguimiento' por tandas hasta completar la base.";
 }
 
 function normalizarDni(dni) {
@@ -685,6 +685,67 @@ function sincronizarSeguimientoCCFilas(rows) {
   return "Seguimiento parcial sincronizado.";
 }
 
+function reiniciarCursorSincronizacionSeguimiento() {
+  PropertiesService.getScriptProperties().deleteProperty("SYNC_SEGUIMIENTO_CURSOR");
+}
+
+function obtenerCursorSincronizacionSeguimiento() {
+  var raw = PropertiesService.getScriptProperties().getProperty("SYNC_SEGUIMIENTO_CURSOR");
+  var cursor = parseInt(raw || "2", 10);
+  if (isNaN(cursor) || cursor < 2) cursor = 2;
+  return cursor;
+}
+
+function guardarCursorSincronizacionSeguimiento(rowNumber) {
+  PropertiesService.getScriptProperties().setProperty("SYNC_SEGUIMIENTO_CURSOR", String(rowNumber));
+}
+
+function construirFilaSeguimientoDesdeBase(rowValues, baseHeaders, trackingHeaders, orderedHeaders, existingRow) {
+  var labelByKey = getSeguimientoLabelByKeyMap();
+  var keyByLabel = getSeguimientoKeyByLabelMap();
+  var localEditable = getSeguimientoEditableLocalKeys();
+  var values = [];
+
+  for (var j = 0; j < orderedHeaders.length; j++) {
+    var label = orderedHeaders[j];
+    var key = keyByLabel[label] || label;
+    var currentValue = existingRow && trackingHeaders[label] ? existingRow[trackingHeaders[label] - 1] : "";
+
+    if (key === "LINK_ENCUESTA") {
+      values.push(construirTextoBotonEncuesta());
+    } else if (key === "ENVIAR WPP") {
+      values.push(construirTextoBotonWhatsApp(rowValues[baseHeaders["Nombre y Apellido"] - 1]));
+    } else if (localEditable[key]) {
+      values.push(currentValue || getSeguimientoDefaultValue(key));
+    } else if (baseHeaders[key]) {
+      values.push(rowValues[baseHeaders[key] - 1]);
+    } else {
+      values.push(currentValue || getSeguimientoDefaultValue(key));
+    }
+  }
+
+  return values;
+}
+
+function aplicarRichTextSeguimiento(baseSheet, trackingSheet, rowIndex, targetRow, baseHeaders, trackingHeaders) {
+  var labelByKey = getSeguimientoLabelByKeyMap();
+  var encuestaLabel = labelByKey["LINK_ENCUESTA"];
+  if (trackingHeaders[encuestaLabel] && baseHeaders["LINK_ENCUESTA"]) {
+    var encuestaRichText = baseSheet.getRange(rowIndex, baseHeaders["LINK_ENCUESTA"]).getRichTextValue();
+    if (encuestaRichText && encuestaRichText.getLinkUrl()) {
+      trackingSheet.getRange(targetRow, trackingHeaders[encuestaLabel]).setRichTextValue(encuestaRichText);
+    }
+  }
+
+  var wppLabel = labelByKey["ENVIAR WPP"];
+  if (trackingHeaders[wppLabel] && baseHeaders["ENVIAR WPP"]) {
+    var richText = baseSheet.getRange(rowIndex, baseHeaders["ENVIAR WPP"]).getRichTextValue();
+    if (richText && richText.getLinkUrl()) {
+      trackingSheet.getRange(targetRow, trackingHeaders[wppLabel]).setRichTextValue(richText);
+    }
+  }
+}
+
 function actualizarGestionCC(idCliente, estadoFinal, observacion, operador, respondioCliente) {
   var sheet = getSheet("Base_Clientes");
   var headerMap = getHeaderMap(sheet);
@@ -1118,12 +1179,65 @@ function upsertSeguimientoCCDesdeBase(rowIndex) {
 
 function sincronizarSeguimientoCC() {
   var baseSheet = getSheet("Base_Clientes");
-  if (baseSheet.getLastRow() < 2) return "No hay clientes para sincronizar.";
-  for (var row = 2; row <= baseSheet.getLastRow(); row++) {
-    upsertSeguimientoCCDesdeBase(row);
+  var trackingSheet = getSheet("Seguimiento_CC");
+  var lastBaseRow = baseSheet.getLastRow();
+  if (lastBaseRow < 2) return "No hay clientes para sincronizar.";
+
+  var batchSize = 120;
+  var startRow = obtenerCursorSincronizacionSeguimiento();
+  if (startRow > lastBaseRow) {
+    reiniciarCursorSincronizacionSeguimiento();
+    return "La sincronizacion ya estaba completa.";
   }
+
+  var endRow = Math.min(lastBaseRow, startRow + batchSize - 1);
+  var baseHeaders = getHeaderMap(baseSheet);
+  var trackingHeaders = getHeaderMap(trackingSheet);
+  var orderedHeaders = trackingSheet.getRange(1, 1, 1, trackingSheet.getLastColumn()).getValues()[0];
+  var trackingLastRow = trackingSheet.getLastRow();
+  var trackingData = trackingLastRow > 1 ? trackingSheet.getRange(2, 1, trackingLastRow - 1, trackingSheet.getLastColumn()).getValues() : [];
+  var labelByKey = getSeguimientoLabelByKeyMap();
+  var trackingIdLabel = labelByKey["ID_CLIENTE"];
+  var trackingTokenLabel = labelByKey["TOKEN"];
+  var indexById = {};
+  var indexByToken = {};
+
+  for (var i = 0; i < trackingData.length; i++) {
+    var trackId = trackingHeaders[trackingIdLabel] ? trackingData[i][trackingHeaders[trackingIdLabel] - 1] : "";
+    var trackToken = trackingHeaders[trackingTokenLabel] ? trackingData[i][trackingHeaders[trackingTokenLabel] - 1] : "";
+    if (trackId) indexById[String(trackId)] = i + 2;
+    if (trackToken) indexByToken[String(trackToken)] = i + 2;
+  }
+
+  var processed = 0;
+  for (var row = startRow; row <= endRow; row++) {
+    var rowValues = baseSheet.getRange(row, 1, 1, baseSheet.getLastColumn()).getValues()[0];
+    var idCliente = rowValues[baseHeaders["ID_CLIENTE"] - 1];
+    var token = rowValues[baseHeaders["TOKEN"] - 1];
+    if (!idCliente && !token) continue;
+
+    var targetRow = idCliente && indexById[String(idCliente)] ? indexById[String(idCliente)] : (token && indexByToken[String(token)] ? indexByToken[String(token)] : 0);
+    var existingRow = null;
+    if (targetRow > 1) existingRow = trackingSheet.getRange(targetRow, 1, 1, trackingSheet.getLastColumn()).getValues()[0];
+    if (!targetRow) targetRow = trackingSheet.getLastRow() + 1;
+
+    var values = construirFilaSeguimientoDesdeBase(rowValues, baseHeaders, trackingHeaders, orderedHeaders, existingRow);
+    trackingSheet.getRange(targetRow, 1, 1, values.length).setValues([values]);
+    aplicarRichTextSeguimiento(baseSheet, trackingSheet, row, targetRow, baseHeaders, trackingHeaders);
+
+    if (idCliente) indexById[String(idCliente)] = targetRow;
+    if (token) indexByToken[String(token)] = targetRow;
+    processed++;
+  }
+
+  if (endRow < lastBaseRow) {
+    guardarCursorSincronizacionSeguimiento(endRow + 1);
+    return "Seguimiento sincronizado por lote: " + processed + " filas. Continue desde Menu > Sincronizar seguimiento.";
+  }
+
+  reiniciarCursorSincronizacionSeguimiento();
   formatearSeguimientoCC();
-  return "Seguimiento_CC sincronizado correctamente.";
+  return "Seguimiento_CC sincronizado completo. Filas procesadas en este lote: " + processed + ".";
 }
 
 function formatearSeguimientoCC() {
