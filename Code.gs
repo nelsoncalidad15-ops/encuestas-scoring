@@ -1,6 +1,6 @@
 ﻿/**
  * Google Apps Script - Code.gs
- * Backend privado para Google Sheets y flujo operativo de Contact Center.
+ * Backend privado para encuesta web y almacenamiento en Google Sheets.
  */
 
 var NOMBRE_CONTACT = "Abigail Wierna";
@@ -10,10 +10,8 @@ function onOpen() {
     SpreadsheetApp.getUi()
       .createMenu("Encuestas Autosol")
       .addItem("1. Preparar planilla", "setupInicialDesdeMenu")
-      .addItem("2. Actualizar nuevos clientes", "procesarNuevosIngresosDesdeMenu")
-      .addItem("3. Aplicar scoring de llamada", "procesarScoringLlamadasDesdeMenu")
-      .addItem("4. Reparar links", "regenerarLinksExistentesDesdeMenu")
-      .addItem("5. Sincronizar seguimiento", "sincronizarSeguimientoCCDesdeMenu")
+      .addItem("2. Generar links nuevos", "procesarNuevosIngresosDesdeMenu")
+      .addItem("3. Reparar links", "regenerarLinksExistentesDesdeMenu")
       .addToUi();
   } catch (e) {
     Logger.log("No se pudo crear el menu en este contexto: " + e);
@@ -62,7 +60,7 @@ function instalarRevisionAutomaticaBaseClientes() {
     .everyMinutes(5)
     .create();
 
-  return "Revision automatica instalada. Cada 5 minutos se revisara Base_Clientes y se actualizara Seguimiento_CC.";
+  return "Revision automatica instalada. Cada 5 minutos se revisara Base_Clientes y se generaran links para filas nuevas.";
 }
 
 function eliminarRevisionAutomaticaBaseClientes() {
@@ -108,10 +106,7 @@ function setupInicial() {
   ensureSheets();
   ensureHeaders();
   actualizarCatalogoPreguntas();
-  actualizarInstructivoCC();
-  reiniciarCursorSincronizacionSeguimiento();
-  formatearSeguimientoCC();
-  return "Planilla preparada. Ahora use 'Sincronizar seguimiento' por tandas hasta completar la base.";
+  return "Planilla preparada. Base lista para importar clientes y generar links de encuesta.";
 }
 
 function normalizarDni(dni) {
@@ -320,18 +315,14 @@ function actualizarBaseCliente(rowIndex, scoring, opciones) {
   var fechaActual = new Date();
   var origen = opciones && opciones.origen ? opciones.origen : "WEB";
 
-  sheet.getRange(rowIndex, headerMap["ESTADO_ENCUESTA"]).setValue(origen === "LLAMADA" ? "Scoring por llamada" : "Respondido");
-  if (origen !== "LLAMADA") sheet.getRange(rowIndex, headerMap["FECHA_RESPUESTA_WEB"]).setValue(fechaActual);
-  sheet.getRange(rowIndex, headerMap["Fecha realizacion scoring"]).setValue(fechaActual);
-  sheet.getRange(rowIndex, headerMap["RESULTADO_SCORING"]).setValue(scoring.resultado);
-  sheet.getRange(rowIndex, headerMap["MOTIVO_RESULTADO"]).setValue(scoring.motivo);
-  sheet.getRange(rowIndex, headerMap["REQUIERE_RECONTACTO"]).setValue(scoring.requiereRecontacto);
-  sheet.getRange(rowIndex, headerMap["AREA_A_REVISAR"]).setValue(scoring.area);
-  sheet.getRange(rowIndex, headerMap["OBSERVACION_INTERNA"]).setValue(scoring.observacion);
-  if (headerMap["RESPONDIO_CLIENTE"]) sheet.getRange(rowIndex, headerMap["RESPONDIO_CLIENTE"]).setValue("Si");
-  if (headerMap["ESTADO_FINAL_CC"]) sheet.getRange(rowIndex, headerMap["ESTADO_FINAL_CC"]).setValue(scoring.resultado);
-
-  upsertSeguimientoCCDesdeBase(rowIndex);
+  if (headerMap["ESTADO_ENCUESTA"]) sheet.getRange(rowIndex, headerMap["ESTADO_ENCUESTA"]).setValue(origen === "LLAMADA" ? "Scoring por llamada" : "Respondido");
+  if (origen !== "LLAMADA" && headerMap["FECHA_RESPUESTA_WEB"]) sheet.getRange(rowIndex, headerMap["FECHA_RESPUESTA_WEB"]).setValue(fechaActual);
+  if (headerMap["Fecha realizacion scoring"]) sheet.getRange(rowIndex, headerMap["Fecha realizacion scoring"]).setValue(fechaActual);
+  if (headerMap["RESULTADO_SCORING"]) sheet.getRange(rowIndex, headerMap["RESULTADO_SCORING"]).setValue(scoring.resultado);
+  if (headerMap["MOTIVO_RESULTADO"]) sheet.getRange(rowIndex, headerMap["MOTIVO_RESULTADO"]).setValue(scoring.motivo);
+  if (headerMap["REQUIERE_RECONTACTO"]) sheet.getRange(rowIndex, headerMap["REQUIERE_RECONTACTO"]).setValue(scoring.requiereRecontacto);
+  if (headerMap["AREA_A_REVISAR"]) sheet.getRange(rowIndex, headerMap["AREA_A_REVISAR"]).setValue(scoring.area);
+  if (headerMap["OBSERVACION_INTERNA"]) sheet.getRange(rowIndex, headerMap["OBSERVACION_INTERNA"]).setValue(scoring.observacion);
 }
 
 function calcularScoring(respuestas) {
@@ -466,41 +457,49 @@ function generarLinksInterno() {
   var headerMap = getHeaderMap(sheet);
   var data = sheet.getDataRange().getValues();
   var count = 0;
+  var skippedNoDni = 0;
   var rowsActualizadas = [];
 
   var netlifyBaseUrl;
   try {
     netlifyBaseUrl = normalizarNetlifyBaseUrl();
   } catch (error) {
-    return { error: error.message, count: 0, rows: [] };
+    return { error: error.message, count: 0, rows: [], skippedNoDni: 0 };
   }
 
   for (var i = 1; i < data.length; i++) {
+    var rowIndex = i + 1;
     var nombre = data[i][headerMap["Nombre y Apellido"] - 1];
     var celular = data[i][headerMap["Celular"] - 1];
     var tokenExistente = data[i][headerMap["TOKEN"] - 1];
+    var dni = headerMap["DNI"] ? data[i][headerMap["DNI"] - 1] : "";
+    var dniHashExistente = headerMap["DNI_HASH"] ? data[i][headerMap["DNI_HASH"] - 1] : "";
+    var solicitud = headerMap["Nro de solicitud"] ? data[i][headerMap["Nro de solicitud"] - 1] : "";
 
-    if (nombre && celular && !tokenExistente) {
-      var rowIndex = i + 1;
-      var token = "T" + Utilities.getUuid().slice(0, 8).toUpperCase() + Math.floor(1000 + Math.random() * 9000);
-      var link = netlifyBaseUrl + "?t=" + token;
+    if (!nombre || !celular || tokenExistente) continue;
 
-      sheet.getRange(rowIndex, headerMap["TOKEN"]).setValue(token);
-      setCeldaLinkEncuesta(sheet, rowIndex, headerMap["LINK_ENCUESTA"], link);
-      sheet.getRange(rowIndex, headerMap["ESTADO_ENCUESTA"]).setValue("Link generado");
-      sheet.getRange(rowIndex, headerMap["FECHA_ENVIO_LINK"]).setValue(new Date());
-      sheet.getRange(rowIndex, headerMap["INTENTOS_INVALIDOS"]).setValue(0);
-      if (headerMap["ESTADO_ENVIO_WPP"]) sheet.getRange(rowIndex, headerMap["ESTADO_ENVIO_WPP"]).setValue("Pendiente de preparacion");
-      if (headerMap["CANTIDAD_INTENTOS_WPP"]) sheet.getRange(rowIndex, headerMap["CANTIDAD_INTENTOS_WPP"]).setValue(0);
-      if (headerMap["RESPONDIO_CLIENTE"]) sheet.getRange(rowIndex, headerMap["RESPONDIO_CLIENTE"]).setValue("No");
-      if (headerMap["ESTADO_FINAL_CC"]) sheet.getRange(rowIndex, headerMap["ESTADO_FINAL_CC"]).setValue("Pendiente");
-
-      rowsActualizadas.push(rowIndex);
-      count++;
+    if (!dni && !dniHashExistente) {
+      skippedNoDni++;
+      continue;
     }
+
+    var token = "T" + Utilities.getUuid().slice(0, 8).toUpperCase() + Math.floor(1000 + Math.random() * 9000);
+    var link = netlifyBaseUrl + "?t=" + token;
+    var idCliente = solicitud ? "SOL-" + solicitud.toString().trim() : "CLI-" + Utilities.getUuid().slice(0, 8).toUpperCase();
+
+    if (headerMap["ID_CLIENTE"] && !data[i][headerMap["ID_CLIENTE"] - 1]) sheet.getRange(rowIndex, headerMap["ID_CLIENTE"]).setValue(idCliente);
+    if (headerMap["DNI_HASH"] && !dniHashExistente && dni) sheet.getRange(rowIndex, headerMap["DNI_HASH"]).setValue(generarHashDniParaCarga(dni));
+    sheet.getRange(rowIndex, headerMap["TOKEN"]).setValue(token);
+    setCeldaLinkEncuesta(sheet, rowIndex, headerMap["LINK_ENCUESTA"], link);
+    if (headerMap["ESTADO_ENCUESTA"]) sheet.getRange(rowIndex, headerMap["ESTADO_ENCUESTA"]).setValue("Link generado");
+    if (headerMap["FECHA_ENVIO_LINK"]) sheet.getRange(rowIndex, headerMap["FECHA_ENVIO_LINK"]).setValue(new Date());
+    if (headerMap["INTENTOS_INVALIDOS"]) sheet.getRange(rowIndex, headerMap["INTENTOS_INVALIDOS"]).setValue(0);
+
+    rowsActualizadas.push(rowIndex);
+    count++;
   }
 
-  return { count: count, rows: rowsActualizadas, error: "" };
+  return { count: count, rows: rowsActualizadas, error: "", skippedNoDni: skippedNoDni };
 }
 
 function regenerarLinksExistentes() {
@@ -526,7 +525,6 @@ function regenerarLinksExistentes() {
       sheet.getRange(i + 1, headerMap["ESTADO_ENCUESTA"]).setValue("Link generado");
     }
 
-    upsertSeguimientoCCDesdeBase(i + 1);
     count++;
   }
 
@@ -536,11 +534,14 @@ function regenerarLinksExistentes() {
 function procesarNuevosIngresos() {
   var resultado = generarLinksInterno();
   if (resultado.error) return "Error: " + resultado.error;
-  if (resultado.count === 0) return "No habia clientes nuevos para procesar.";
+  if (resultado.count === 0) {
+    if (resultado.skippedNoDni > 0) return "No se generaron links. Hay " + resultado.skippedNoDni + " filas sin DNI para validar identidad.";
+    return "No habia clientes nuevos para procesar.";
+  }
 
-  var resultadoWpp = generarMensajeWhatsAppParaFilas(resultado.rows);
-  sincronizarSeguimientoCCFilas(resultado.rows);
-  return "Se procesaron " + resultado.count + " clientes nuevos. | " + resultadoWpp;
+  var mensaje = "Se generaron " + resultado.count + " links nuevos.";
+  if (resultado.skippedNoDni > 0) mensaje += " Filas omitidas sin DNI: " + resultado.skippedNoDni + ".";
+  return mensaje;
 }
 
 function generarMensajeWhatsApp() {
@@ -1011,7 +1012,7 @@ function findBaseRowByIdOrToken(idCliente, token) {
 
 function ensureSheets() {
   var ss = getSpreadsheet();
-  var required = ["Base_Clientes", "Respuestas_Scoring", "Preguntas", "Log_Seguridad", "Dashboard", "Vendedores", "Seguimiento_CC", "Instructivo_CC"];
+  var required = ["Base_Clientes", "Respuestas_Scoring", "Preguntas", "Vendedores", "Log_Seguridad"];
   for (var i = 0; i < required.length; i++) {
     if (!ss.getSheetByName(required[i])) ss.insertSheet(required[i]);
   }
@@ -1051,16 +1052,13 @@ function ensureHeadersPresent(sheetName, headers) {
 
 function ensureHeaders() {
   var headersBase = [
-    "Mes", "Nº", "fecha de carga de planilla", "Nro de solicitud", "Nombre y Apellido",
-    "Celular", "Mail", "Modelo suscripto/falta plan", "Nombre del Asesor", "Monto 2da cuota (aprox)",
-    "¿Como seguira pagando su plan?", "Observaciones", "ID_CLIENTE", "Modelo detectado", "Porcentaje financiado",
-    "Porcentaje licitacion", "Adjudicacion asegurada", "Cuotas adjudicacion", "Beneficio detectado",
-    "Nombre persona contactada", "Estado contacto", "Gestionado por Asesor CC", "Fecha 1er llamado",
-    "Fecha 2do llamado", "Fecha 3er llamado", "Fecha realizacion scoring", "TOKEN", "DNI_HASH",
-    "LINK_ENCUESTA", "ENVIAR WPP", "ESTADO_ENVIO_WPP", "OPERADOR_CC", "FECHA_ULTIMO_ENVIO_WPP",
-    "CANTIDAD_INTENTOS_WPP", "ULTIMO_CONTACTO_CC", "ESTADO_ENCUESTA", "RESPONDIO_CLIENTE", "FECHA_ENVIO_LINK", "FECHA_RESPUESTA_WEB",
-    "RESULTADO_SCORING", "MOTIVO_RESULTADO", "REQUIERE_RECONTACTO", "AREA_A_REVISAR", "ESTADO_FINAL_CC", "OBS_CC", "OBSERVACION_INTERNA",
-    "INTENTOS_INVALIDOS"
+    "Mes", "N" + String.fromCharCode(186), "fecha de carga de planilla", "Nro de solicitud", "Nombre y Apellido",
+    "Celular", "Mail", "DNI", "Modelo suscripto/falta plan", "Nombre del Asesor",
+    "Monto 2da cuota (aprox)", String.fromCharCode(191) + "Como seguira pagando su plan?", "Observaciones",
+    "ID_CLIENTE", "TOKEN", "DNI_HASH", "LINK_ENCUESTA", "ESTADO_ENCUESTA",
+    "FECHA_ENVIO_LINK", "FECHA_RESPUESTA_WEB", "Fecha realizacion scoring",
+    "RESULTADO_SCORING", "MOTIVO_RESULTADO", "REQUIERE_RECONTACTO",
+    "AREA_A_REVISAR", "OBSERVACION_INTERNA", "INTENTOS_INVALIDOS"
   ];
 
   var headersScoring = [
@@ -1077,16 +1075,12 @@ function ensureHeaders() {
 
   var headersPreguntas = ["Codigo", "Bloque", "Orden", "Pregunta", "Tipo", "Opciones", "Obligatoria", "Condicion", "Columna_respuesta", "Activa"];
   var headersLogs = ["Fecha", "Token", "DNI_HASH", "Resultado", "Detalle", "Origen"];
-  var headersDashboard = ["Indicador", "Valor", "Observacion"];
-  var headersSeguimiento = getSeguimientoHeaders();
   var headersVendedores = ["Nombre del Vendedor"];
 
   ensureHeadersPresent("Base_Clientes", headersBase);
   ensureHeadersPresent("Respuestas_Scoring", headersScoring);
   ensureHeadersPresent("Preguntas", headersPreguntas);
   ensureHeadersPresent("Log_Seguridad", headersLogs);
-  ensureHeadersPresent("Dashboard", headersDashboard);
-  ensureHeadersPresent("Seguimiento_CC", headersSeguimiento);
   ensureHeadersPresent("Vendedores", headersVendedores);
 
   var vendSheet = getSheet("Vendedores");
