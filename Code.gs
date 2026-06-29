@@ -79,6 +79,10 @@ function eliminarRevisionAutomaticaBaseClientes() {
 
 function doPost(e) {
   try {
+    ensureSheets();
+    ensureHeaders();
+    actualizarCatalogoPreguntas();
+
     var payload = JSON.parse(e.postData.contents);
     var action = payload.action;
     var backendSecret = payload.backendSecret;
@@ -256,7 +260,11 @@ function guardarEncuesta(token, dni, respuestas) {
 }
 
 function guardarRespuestaScoring(cliente, respuestas, scoring) {
+  ensureHeaders();
   var sheet = getSheet("Respuestas_Scoring");
+  if (sheet.getLastColumn() === 0) {
+    throw new Error("La hoja Respuestas_Scoring no tiene encabezados.");
+  }
   var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
   var newRow = [];
   var idRespuesta = "R-" + Utilities.getUuid().slice(0, 8).toUpperCase();
@@ -846,6 +854,7 @@ function normalizarNetlifyBaseUrl() {
 }
 
 function getHeaderMap(sheet) {
+  if (!sheet || sheet.getLastColumn() === 0) return {};
   var headerRange = sheet.getRange(1, 1, 1, sheet.getLastColumn());
   var headers = headerRange.getValues()[0];
   var map = {};
