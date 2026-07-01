@@ -4,6 +4,7 @@
  */
 
 var NOMBRE_CONTACT = "Abigail Wierna";
+var BASE_SHEET_FALLBACK_NAMES = ["SOLICITUDES JUJUY", "SOLICITUDES SALTA", "Base_Clientes", "cargaBase"];
 
 function onOpen() {
   try {
@@ -145,25 +146,66 @@ function generarHashDniParaCarga(dni) {
   return generarHash(dni);
 }
 
+function getBaseSheetNames() {
+  var configured = PropertiesService.getScriptProperties().getProperty("BASE_CLIENT_SHEETS");
+  if (!configured) return BASE_SHEET_FALLBACK_NAMES.slice();
+
+  var names = configured.split(",");
+  var cleaned = [];
+  var seen = {};
+  for (var i = 0; i < names.length; i++) {
+    var name = names[i] ? names[i].toString().trim() : "";
+    if (name && !seen[name]) {
+      cleaned.push(name);
+      seen[name] = true;
+    }
+  }
+
+  if (cleaned.length === 0) return BASE_SHEET_FALLBACK_NAMES.slice();
+  return cleaned;
+}
+
+function getExistingBaseSheets() {
+  var ss = getSpreadsheet();
+  var names = getBaseSheetNames();
+  var sheets = [];
+
+  for (var i = 0; i < names.length; i++) {
+    var sheet = ss.getSheetByName(names[i]);
+    if (sheet) sheets.push(sheet);
+  }
+
+  if (sheets.length === 0) sheets.push(getSheet("Base_Clientes"));
+  return sheets;
+}
+
 function buscarFilaPorToken(token) {
   if (!token) return null;
 
-  var sheet = getSheet("Base_Clientes");
-  var data = sheet.getDataRange().getValues();
-  var headerMap = getHeaderMap(sheet);
-  var tokenColIndex = headerMap["TOKEN"] - 1;
+  var sheets = getExistingBaseSheets();
+  var tokenBuscado = token.toString().trim();
 
-  if (tokenColIndex < 0) return null;
+  for (var s = 0; s < sheets.length; s++) {
+    var sheet = sheets[s];
+    var data = sheet.getDataRange().getValues();
+    var headerMap = getHeaderMap(sheet);
+    var tokenColIndex = headerMap["TOKEN"] ? headerMap["TOKEN"] - 1 : -1;
 
-  for (var i = 1; i < data.length; i++) {
-    if (data[i][tokenColIndex].toString().trim() === token.toString().trim()) {
-      return {
-        rowIndex: i + 1,
-        values: data[i],
-        headerMap: headerMap
-      };
+    if (tokenColIndex < 0) continue;
+
+    for (var i = 1; i < data.length; i++) {
+      if (data[i][tokenColIndex].toString().trim() === tokenBuscado) {
+        return {
+          sheet: sheet,
+          sheetName: sheet.getName(),
+          rowIndex: i + 1,
+          values: data[i],
+          headerMap: headerMap
+        };
+      }
     }
   }
+
   return null;
 }
 
@@ -172,7 +214,7 @@ function validarCliente(token, dni) {
   var rowData = buscarFilaPorToken(token);
 
   if (!rowData) {
-    registrarLog(token, dniHashInput, "TOKEN_INVALIDO", "Token no encontrado en Base_Clientes", "validarCliente");
+    registrarLog(token, dniHashInput, "TOKEN_INVALIDO", "Token no encontrado en hojas base configuradas", "validarCliente");
     return jsonResponse({ status: "TOKEN_INVALIDO" });
   }
 
@@ -190,7 +232,7 @@ function validarCliente(token, dni) {
   var esValido = (dniHashInput === dniHashSheetStr) || (normalizarDni(dni) === normalizarDni(dniHashSheetStr));
 
   if (!esValido) {
-    var sheet = getSheet("Base_Clientes");
+    var sheet = rowData.sheet;
     var intentosColIndex = headerMap["INTENTOS_INVALIDOS"];
     var currentIntentos = parseInt(rowValues[intentosColIndex - 1] || "0", 10);
     sheet.getRange(rowData.rowIndex, intentosColIndex).setValue(currentIntentos + 1);
@@ -253,7 +295,7 @@ function guardarEncuesta(token, dni, respuestas) {
   };
 
   guardarRespuestaScoring(clienteInfo, respuestas, scoring);
-  actualizarBaseCliente(rowData.rowIndex, scoring);
+  actualizarBaseCliente(rowData.rowIndex, scoring, { sheet: rowData.sheet });
   registrarLog(token, dniHashInput, "OK", "Encuesta procesada y scoring calculado: " + scoring.resultado, "guardarEncuesta");
 
   return jsonResponse({ status: "OK", scoringResult: scoring.resultado });
@@ -318,7 +360,7 @@ function guardarRespuestaScoring(cliente, respuestas, scoring) {
 }
 
 function actualizarBaseCliente(rowIndex, scoring, opciones) {
-  var sheet = getSheet("Base_Clientes");
+  var sheet = opciones && opciones.sheet ? opciones.sheet : getSheet("Base_Clientes");
   var headerMap = getHeaderMap(sheet);
   var fechaActual = new Date();
   var origen = opciones && opciones.origen ? opciones.origen : "WEB";
@@ -461,9 +503,6 @@ function generarLinks() {
 }
 
 function generarLinksInterno() {
-  var sheet = getSheet("Base_Clientes");
-  var headerMap = getHeaderMap(sheet);
-  var data = sheet.getDataRange().getValues();
   var count = 0;
   var skippedNoDni = 0;
   var rowsActualizadas = [];
@@ -475,45 +514,51 @@ function generarLinksInterno() {
     return { error: error.message, count: 0, rows: [], skippedNoDni: 0 };
   }
 
-  for (var i = 1; i < data.length; i++) {
-    var rowIndex = i + 1;
-    var nombre = data[i][headerMap["Nombre y Apellido"] - 1];
-    var celular = data[i][headerMap["Celular"] - 1];
-    var tokenExistente = data[i][headerMap["TOKEN"] - 1];
-    var dni = headerMap["DNI"] ? data[i][headerMap["DNI"] - 1] : "";
-    var dniHashExistente = headerMap["DNI_HASH"] ? data[i][headerMap["DNI_HASH"] - 1] : "";
-    var solicitud = headerMap["Nro de solicitud"] ? data[i][headerMap["Nro de solicitud"] - 1] : "";
+  var sheets = getExistingBaseSheets();
+  for (var s = 0; s < sheets.length; s++) {
+    var sheet = sheets[s];
+    var headerMap = getHeaderMap(sheet);
+    var data = sheet.getDataRange().getValues();
 
-    if (!nombre || !celular || tokenExistente) continue;
+    if (!headerMap["Nombre y Apellido"] || !headerMap["Celular"] || !headerMap["TOKEN"] || !headerMap["LINK_ENCUESTA"]) continue;
 
-    if (!dni && !dniHashExistente) {
-      skippedNoDni++;
-      continue;
+    for (var i = 1; i < data.length; i++) {
+      var rowIndex = i + 1;
+      var nombre = data[i][headerMap["Nombre y Apellido"] - 1];
+      var celular = data[i][headerMap["Celular"] - 1];
+      var tokenExistente = data[i][headerMap["TOKEN"] - 1];
+      var dni = headerMap["DNI"] ? data[i][headerMap["DNI"] - 1] : "";
+      var dniHashExistente = headerMap["DNI_HASH"] ? data[i][headerMap["DNI_HASH"] - 1] : "";
+      var solicitud = headerMap["Nro de solicitud"] ? data[i][headerMap["Nro de solicitud"] - 1] : "";
+
+      if (!nombre || !celular || tokenExistente) continue;
+
+      if (!dni && !dniHashExistente) {
+        skippedNoDni++;
+        continue;
+      }
+
+      var token = "T" + Utilities.getUuid().slice(0, 8).toUpperCase() + Math.floor(1000 + Math.random() * 9000);
+      var link = netlifyBaseUrl + "?t=" + token;
+      var idCliente = solicitud ? "SOL-" + solicitud.toString().trim() : "CLI-" + Utilities.getUuid().slice(0, 8).toUpperCase();
+
+      if (headerMap["ID_CLIENTE"] && !data[i][headerMap["ID_CLIENTE"] - 1]) sheet.getRange(rowIndex, headerMap["ID_CLIENTE"]).setValue(idCliente);
+      if (headerMap["DNI_HASH"] && !dniHashExistente && dni) sheet.getRange(rowIndex, headerMap["DNI_HASH"]).setValue(generarHashDniParaCarga(dni));
+      sheet.getRange(rowIndex, headerMap["TOKEN"]).setValue(token);
+      setCeldaLinkEncuesta(sheet, rowIndex, headerMap["LINK_ENCUESTA"], link);
+      if (headerMap["ESTADO_ENCUESTA"]) sheet.getRange(rowIndex, headerMap["ESTADO_ENCUESTA"]).setValue("Link generado");
+      if (headerMap["FECHA_ENVIO_LINK"]) sheet.getRange(rowIndex, headerMap["FECHA_ENVIO_LINK"]).setValue(new Date());
+      if (headerMap["INTENTOS_INVALIDOS"]) sheet.getRange(rowIndex, headerMap["INTENTOS_INVALIDOS"]).setValue(0);
+
+      rowsActualizadas.push({ sheetName: sheet.getName(), rowIndex: rowIndex });
+      count++;
     }
-
-    var token = "T" + Utilities.getUuid().slice(0, 8).toUpperCase() + Math.floor(1000 + Math.random() * 9000);
-    var link = netlifyBaseUrl + "?t=" + token;
-    var idCliente = solicitud ? "SOL-" + solicitud.toString().trim() : "CLI-" + Utilities.getUuid().slice(0, 8).toUpperCase();
-
-    if (headerMap["ID_CLIENTE"] && !data[i][headerMap["ID_CLIENTE"] - 1]) sheet.getRange(rowIndex, headerMap["ID_CLIENTE"]).setValue(idCliente);
-    if (headerMap["DNI_HASH"] && !dniHashExistente && dni) sheet.getRange(rowIndex, headerMap["DNI_HASH"]).setValue(generarHashDniParaCarga(dni));
-    sheet.getRange(rowIndex, headerMap["TOKEN"]).setValue(token);
-    setCeldaLinkEncuesta(sheet, rowIndex, headerMap["LINK_ENCUESTA"], link);
-    if (headerMap["ESTADO_ENCUESTA"]) sheet.getRange(rowIndex, headerMap["ESTADO_ENCUESTA"]).setValue("Link generado");
-    if (headerMap["FECHA_ENVIO_LINK"]) sheet.getRange(rowIndex, headerMap["FECHA_ENVIO_LINK"]).setValue(new Date());
-    if (headerMap["INTENTOS_INVALIDOS"]) sheet.getRange(rowIndex, headerMap["INTENTOS_INVALIDOS"]).setValue(0);
-
-    rowsActualizadas.push(rowIndex);
-    count++;
   }
 
   return { count: count, rows: rowsActualizadas, error: "", skippedNoDni: skippedNoDni };
 }
 
 function regenerarLinksExistentes() {
-  var sheet = getSheet("Base_Clientes");
-  var headerMap = getHeaderMap(sheet);
-  var data = sheet.getDataRange().getValues();
   var count = 0;
 
   var netlifyBaseUrl;
@@ -523,17 +568,25 @@ function regenerarLinksExistentes() {
     return "Error: " + error.message;
   }
 
-  for (var i = 1; i < data.length; i++) {
-    var token = data[i][headerMap["TOKEN"] - 1];
-    if (!token) continue;
+  var sheets = getExistingBaseSheets();
+  for (var s = 0; s < sheets.length; s++) {
+    var sheet = sheets[s];
+    var headerMap = getHeaderMap(sheet);
+    var data = sheet.getDataRange().getValues();
+    if (!headerMap["TOKEN"] || !headerMap["LINK_ENCUESTA"]) continue;
 
-    var link = netlifyBaseUrl + "?t=" + token;
-    setCeldaLinkEncuesta(sheet, i + 1, headerMap["LINK_ENCUESTA"], link);
-    if (headerMap["ESTADO_ENCUESTA"] && !data[i][headerMap["ESTADO_ENCUESTA"] - 1]) {
-      sheet.getRange(i + 1, headerMap["ESTADO_ENCUESTA"]).setValue("Link generado");
+    for (var i = 1; i < data.length; i++) {
+      var token = data[i][headerMap["TOKEN"] - 1];
+      if (!token) continue;
+
+      var link = netlifyBaseUrl + "?t=" + token;
+      setCeldaLinkEncuesta(sheet, i + 1, headerMap["LINK_ENCUESTA"], link);
+      if (headerMap["ESTADO_ENCUESTA"] && !data[i][headerMap["ESTADO_ENCUESTA"] - 1]) {
+        sheet.getRange(i + 1, headerMap["ESTADO_ENCUESTA"]).setValue("Link generado");
+      }
+
+      count++;
     }
-
-    count++;
   }
 
   return "Se regeneraron " + count + " links a partir de los tokens existentes.";
@@ -553,11 +606,14 @@ function procesarNuevosIngresos() {
 }
 
 function generarMensajeWhatsApp() {
-  var sheet = getSheet("Base_Clientes");
-  var lastRow = sheet.getLastRow();
-  var rows = [];
-  for (var row = 2; row <= lastRow; row++) rows.push(row);
-  return generarMensajeWhatsAppParaFilas(rows);
+  var sheets = getExistingBaseSheets();
+  var total = 0;
+
+  for (var s = 0; s < sheets.length; s++) {
+    total += generarMensajeWhatsAppParaSheet(sheets[s]);
+  }
+
+  return "Se compilaron " + total + " links de WhatsApp.";
 }
 
 function generarMensajeWhatsAppParaFilas(rows) {
@@ -592,6 +648,39 @@ function generarMensajeWhatsAppParaFilas(rows) {
   }
 
   return "Se compilaron " + count + " links de WhatsApp.";
+}
+
+function generarMensajeWhatsAppParaSheet(sheet) {
+  if (!sheet || sheet.getLastRow() < 2) return 0;
+
+  var headerMap = getHeaderMap(sheet);
+  if (!headerMap["Nombre y Apellido"] || !headerMap["Celular"] || !headerMap["LINK_ENCUESTA"]) return 0;
+
+  var count = 0;
+  for (var row = 2; row <= sheet.getLastRow(); row++) {
+    var rowValues = sheet.getRange(row, 1, 1, sheet.getLastColumn()).getValues()[0];
+    var nombre = rowValues[headerMap["Nombre y Apellido"] - 1];
+    var celular = rowValues[headerMap["Celular"] - 1];
+    var linkEncuesta = rowValues[headerMap["LINK_ENCUESTA"] - 1];
+
+    if (nombre && celular && linkEncuesta) {
+      var cellClean = celular.toString().replace(/\D/g, "");
+      if (cellClean.length === 10) cellClean = "549" + cellClean;
+
+      var mensajeText = "Hola, Sr./Sra. " + nombre + ". Mi nombre es " + NOMBRE_CONTACT + ", me comunico desde Autosol.\n\n" +
+        "Le compartimos el link para realizar la validacion de su suscripcion al Plan de Ahorro:\n\n" +
+        linkEncuesta + "\n\n" +
+        "La encuesta es breve y nos permite confirmar que la informacion de su plan fue correctamente explicada y registrada. Para ingresar, debera colocar su DNI unicamente como validacion de identidad.\n\n" +
+        "Muchas gracias. Saludos cordiales.";
+
+      var waLink = "https://wa.me/" + cellClean + "?text=" + encodeURIComponent(mensajeText);
+      if (headerMap["ENVIAR WPP"]) setCeldaLinkWhatsApp(sheet, row, headerMap["ENVIAR WPP"], waLink, nombre);
+      if (headerMap["ESTADO_ENVIO_WPP"]) sheet.getRange(row, headerMap["ESTADO_ENVIO_WPP"]).setValue("Listo para enviar");
+      count++;
+    }
+  }
+
+  return count;
 }
 
 function procesarScoringLlamadas() {
@@ -689,7 +778,9 @@ function setCeldaLinkWhatsApp(sheet, rowIndex, colIndex, url, nombreCompleto) {
 function sincronizarSeguimientoCCFilas(rows) {
   if (!rows || rows.length === 0) return "No habia filas para sincronizar.";
   for (var i = 0; i < rows.length; i++) {
-    upsertSeguimientoCCDesdeBase(rows[i]);
+    var rowInfo = rows[i];
+    if (typeof rowInfo === "object" && rowInfo.rowIndex) upsertSeguimientoCCDesdeBase(rowInfo.rowIndex, getSpreadsheet().getSheetByName(rowInfo.sheetName));
+    else upsertSeguimientoCCDesdeBase(rowInfo);
   }
   return "Seguimiento parcial sincronizado.";
 }
@@ -1007,14 +1098,17 @@ function buildRespuestasFromSeguimientoRow(rowValues, headerMap, labels) {
 }
 
 function findBaseRowByIdOrToken(idCliente, token) {
-  var sheet = getSheet("Base_Clientes");
-  var headerMap = getHeaderMap(sheet);
-  var data = sheet.getDataRange().getValues();
-  for (var i = 1; i < data.length; i++) {
-    var rowId = headerMap["ID_CLIENTE"] ? data[i][headerMap["ID_CLIENTE"] - 1] : "";
-    var rowToken = headerMap["TOKEN"] ? data[i][headerMap["TOKEN"] - 1] : "";
-    if ((idCliente && rowId == idCliente) || (token && rowToken == token)) {
-      return { rowIndex: i + 1, values: data[i], headerMap: headerMap };
+  var sheets = getExistingBaseSheets();
+  for (var s = 0; s < sheets.length; s++) {
+    var sheet = sheets[s];
+    var headerMap = getHeaderMap(sheet);
+    var data = sheet.getDataRange().getValues();
+    for (var i = 1; i < data.length; i++) {
+      var rowId = headerMap["ID_CLIENTE"] ? data[i][headerMap["ID_CLIENTE"] - 1] : "";
+      var rowToken = headerMap["TOKEN"] ? data[i][headerMap["TOKEN"] - 1] : "";
+      if ((idCliente && rowId == idCliente) || (token && rowToken == token)) {
+        return { sheet: sheet, rowIndex: i + 1, values: data[i], headerMap: headerMap };
+      }
     }
   }
   return null;
@@ -1022,9 +1116,13 @@ function findBaseRowByIdOrToken(idCliente, token) {
 
 function ensureSheets() {
   var ss = getSpreadsheet();
-  var required = ["Base_Clientes", "Respuestas_Scoring", "Preguntas", "Vendedores", "Log_Seguridad"];
+  var required = ["Respuestas_Scoring", "Preguntas", "Vendedores", "Log_Seguridad"];
   for (var i = 0; i < required.length; i++) {
     if (!ss.getSheetByName(required[i])) ss.insertSheet(required[i]);
+  }
+
+  if (getExistingBaseSheets().length === 0) {
+    getSheet("Base_Clientes");
   }
 }
 
@@ -1090,7 +1188,10 @@ function ensureHeaders() {
   var headersLogs = ["Fecha", "Token", "DNI_HASH", "Resultado", "Detalle", "Origen"];
   var headersVendedores = ["Nombre del Vendedor"];
 
-  ensureHeadersPresent("Base_Clientes", headersBase);
+  var baseSheets = getExistingBaseSheets();
+  for (var i = 0; i < baseSheets.length; i++) {
+    ensureHeadersPresent(baseSheets[i].getName(), headersBase);
+  }
   ensureHeadersPresent("Respuestas_Scoring", headersScoring);
   ensureHeadersPresent("Preguntas", headersPreguntas);
   ensureHeadersPresent("Log_Seguridad", headersLogs);
@@ -1112,8 +1213,8 @@ function ensureHeaders() {
   }
 }
 
-function upsertSeguimientoCCDesdeBase(rowIndex) {
-  var baseSheet = getSheet("Base_Clientes");
+function upsertSeguimientoCCDesdeBase(rowIndex, baseSheet) {
+  baseSheet = baseSheet || getSheet("Base_Clientes");
   var trackingSheet = getSheet("Seguimiento_CC");
   var baseHeaders = getHeaderMap(baseSheet);
   var trackingHeaders = getHeaderMap(trackingSheet);
@@ -1185,20 +1286,9 @@ function upsertSeguimientoCCDesdeBase(rowIndex) {
 }
 
 function sincronizarSeguimientoCC() {
-  var baseSheet = getSheet("Base_Clientes");
   var trackingSheet = getSheet("Seguimiento_CC");
-  var lastBaseRow = baseSheet.getLastRow();
-  if (lastBaseRow < 2) return "No hay clientes para sincronizar.";
+  ensureHeadersPresent("Seguimiento_CC", getSeguimientoHeaders());
 
-  var batchSize = 120;
-  var startRow = obtenerCursorSincronizacionSeguimiento();
-  if (startRow > lastBaseRow) {
-    reiniciarCursorSincronizacionSeguimiento();
-    return "La sincronizacion ya estaba completa.";
-  }
-
-  var endRow = Math.min(lastBaseRow, startRow + batchSize - 1);
-  var baseHeaders = getHeaderMap(baseSheet);
   var trackingHeaders = getHeaderMap(trackingSheet);
   var orderedHeaders = trackingSheet.getRange(1, 1, 1, trackingSheet.getLastColumn()).getValues()[0];
   var trackingLastRow = trackingSheet.getLastRow();
@@ -1216,35 +1306,40 @@ function sincronizarSeguimientoCC() {
     if (trackToken) indexByToken[String(trackToken)] = i + 2;
   }
 
+  var baseSheets = getExistingBaseSheets();
   var processed = 0;
-  for (var row = startRow; row <= endRow; row++) {
-    var rowValues = baseSheet.getRange(row, 1, 1, baseSheet.getLastColumn()).getValues()[0];
-    var idCliente = rowValues[baseHeaders["ID_CLIENTE"] - 1];
-    var token = rowValues[baseHeaders["TOKEN"] - 1];
-    if (!idCliente && !token) continue;
 
-    var targetRow = idCliente && indexById[String(idCliente)] ? indexById[String(idCliente)] : (token && indexByToken[String(token)] ? indexByToken[String(token)] : 0);
-    var existingRow = null;
-    if (targetRow > 1) existingRow = trackingSheet.getRange(targetRow, 1, 1, trackingSheet.getLastColumn()).getValues()[0];
-    if (!targetRow) targetRow = trackingSheet.getLastRow() + 1;
+  for (var s = 0; s < baseSheets.length; s++) {
+    var baseSheet = baseSheets[s];
+    var lastBaseRow = baseSheet.getLastRow();
+    if (lastBaseRow < 2) continue;
 
-    var values = construirFilaSeguimientoDesdeBase(rowValues, baseHeaders, trackingHeaders, orderedHeaders, existingRow);
-    trackingSheet.getRange(targetRow, 1, 1, values.length).setValues([values]);
-    aplicarRichTextSeguimiento(baseSheet, trackingSheet, row, targetRow, baseHeaders, trackingHeaders);
+    var baseHeaders = getHeaderMap(baseSheet);
+    for (var row = 2; row <= lastBaseRow; row++) {
+      var rowValues = baseSheet.getRange(row, 1, 1, baseSheet.getLastColumn()).getValues()[0];
+      var idCliente = rowValues[baseHeaders["ID_CLIENTE"] - 1];
+      var token = rowValues[baseHeaders["TOKEN"] - 1];
+      if (!idCliente && !token) continue;
 
-    if (idCliente) indexById[String(idCliente)] = targetRow;
-    if (token) indexByToken[String(token)] = targetRow;
-    processed++;
+      var targetRow = idCliente && indexById[String(idCliente)] ? indexById[String(idCliente)] : (token && indexByToken[String(token)] ? indexByToken[String(token)] : 0);
+      var existingRow = null;
+      if (targetRow > 1) existingRow = trackingSheet.getRange(targetRow, 1, 1, trackingSheet.getLastColumn()).getValues()[0];
+      if (!targetRow) targetRow = trackingSheet.getLastRow() + 1;
+
+      var values = construirFilaSeguimientoDesdeBase(rowValues, baseHeaders, trackingHeaders, orderedHeaders, existingRow);
+      trackingSheet.getRange(targetRow, 1, 1, values.length).setValues([values]);
+      aplicarRichTextSeguimiento(baseSheet, trackingSheet, row, targetRow, baseHeaders, trackingHeaders);
+
+      if (idCliente) indexById[String(idCliente)] = targetRow;
+      if (token) indexByToken[String(token)] = targetRow;
+      processed++;
+    }
   }
 
-  if (endRow < lastBaseRow) {
-    guardarCursorSincronizacionSeguimiento(endRow + 1);
-    return "Seguimiento sincronizado por lote: " + processed + " filas. Continue desde Menu > Sincronizar seguimiento.";
-  }
-
-  reiniciarCursorSincronizacionSeguimiento();
   formatearSeguimientoCC();
-  return "Seguimiento_CC sincronizado completo. Filas procesadas en este lote: " + processed + ".";
+  reiniciarCursorSincronizacionSeguimiento();
+  if (processed === 0) return "No habia filas base para sincronizar.";
+  return "Seguimiento_CC sincronizado. Filas procesadas: " + processed + ".";
 }
 
 function formatearSeguimientoCC() {
@@ -1508,6 +1603,8 @@ function obtenerListaVendedores() {
     return [];
   }
 }
+
+
 
 
 

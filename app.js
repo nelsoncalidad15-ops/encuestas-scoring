@@ -3,6 +3,7 @@
  */
 
 let urlToken = "";
+let isDemoMode = false;
 let validatedDni = "";
 let clientData = null;
 let currentStep = 2;
@@ -45,15 +46,20 @@ const stepTitles = {
 window.addEventListener("DOMContentLoaded", () => {
   const params = new URLSearchParams(window.location.search);
   urlToken = params.get("t") || "";
+  isDemoMode = params.get("demo") === "1" || params.get("prueba") === "1" || (params.get("modo") || "").toLowerCase() === "prueba";
 
   if (window.lucide) window.lucide.createIcons();
 
   setTimeout(() => {
     hideElement(viewInitialCheck);
+    if (isDemoMode) {
+      startDemoMode();
+      return;
+    }
     if (!urlToken) {
       showElement(viewTokenError);
       document.getElementById("token-error-title").textContent = "Link incompleto";
-      document.getElementById("token-error-desc").textContent = "El enlace de validacion no contiene un identificador unico de cliente.";
+      document.getElementById("token-error-desc").textContent = "El enlace de validacion no contiene un identificador unico de cliente. Si solo quiere probar la encuesta, use ?demo=1.";
     } else {
       showElement(viewStepValidation);
     }
@@ -76,6 +82,30 @@ function showToast(message) {
 
 function hideToast() {
   errorToast.classList.add("hidden");
+}
+
+function startDemoMode() {
+  validatedDni = "00000000";
+  clientData = {
+    nombre: "Cliente de prueba",
+    modelo: "Plan Autosol demo",
+    asesor: "Asesor demo",
+    montoCuota2: "0",
+  };
+
+  hideElement(viewTokenError);
+  hideElement(viewStepValidation);
+  document.getElementById("client-badge-name").textContent = clientData.nombre;
+  document.getElementById("client-badge-model").textContent = clientData.modelo;
+  document.getElementById("span-modelo").textContent = clientData.modelo;
+  document.getElementById("client-badge-advisor").textContent = clientData.asesor;
+  document.getElementById("client-badge-quote").textContent = "$ 0";
+  populateVendors(["Asesor demo", "Vendedor demo", "Otro vendedor"]);
+  showElement(progressContainer);
+  showElement(surveyQuestionsContainer);
+  currentStep = 2;
+  updateStepUI();
+  showToast("Modo prueba activo. Esta encuesta no valida DNI ni guarda respuestas.");
 }
 
 async function validateDni(event) {
@@ -262,7 +292,7 @@ async function submitSurvey() {
   hideToast();
   hideElement(surveyQuestionsContainer);
   showElement(viewLoadingOverlay);
-  loadingOverlayText.textContent = "Guardando validacion...";
+  loadingOverlayText.textContent = isDemoMode ? "Cerrando modo prueba..." : "Guardando validacion...";
 
   const q9Value = document.getElementById("input-q9").value === "Otro"
     ? document.getElementById("input-q9-otro").value.trim()
@@ -293,6 +323,15 @@ async function submitSurvey() {
   };
 
   try {
+    if (isDemoMode) {
+      hideElement(viewLoadingOverlay);
+      hideElement(progressContainer);
+      showElement(viewSuccess);
+      viewSuccess.querySelector("h2").textContent = "Modo prueba finalizado";
+      viewSuccess.querySelector("p").textContent = "La encuesta se completo en modo prueba. No se valido identidad ni se guardaron respuestas.";
+      return;
+    }
+
     const response = await fetch("/.netlify/functions/enviarEncuesta", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -324,5 +363,6 @@ async function submitSurvey() {
     showToast("Error de red. No pudimos guardar su encuesta. Compruebe su conexion e intente nuevamente.");
   }
 }
+
 
 
