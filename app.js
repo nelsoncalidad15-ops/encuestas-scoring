@@ -7,7 +7,7 @@ let isDemoMode = false;
 let validatedDni = "";
 let clientData = null;
 let currentStep = 2;
-const totalSteps = 6;
+const totalSteps = 5;
 
 const viewInitialCheck = document.getElementById("view-initial-check");
 const viewTokenError = document.getElementById("view-token-error");
@@ -28,19 +28,16 @@ const panels = {
   3: document.getElementById("step-panel-3"),
   4: document.getElementById("step-panel-4"),
   5: document.getElementById("step-panel-5"),
-  6: document.getElementById("step-panel-6"),
 };
 
 const btnNavPrev = document.getElementById("btn-nav-prev");
-const btnNavNext = document.getElementById("btn-nav-next");
 const btnNextText = document.getElementById("btn-next-text");
 
 const stepTitles = {
   2: "Informacion del plan",
-  3: "Cuotas y pagos",
-  4: "Vendedor",
-  5: "Otros datos",
-  6: "Cierre",
+  3: "Cuotas y debito",
+  4: "Vendedor y origen",
+  5: "Cierre",
 };
 
 window.addEventListener("DOMContentLoaded", () => {
@@ -49,6 +46,8 @@ window.addEventListener("DOMContentLoaded", () => {
   isDemoMode = params.get("demo") === "1" || params.get("prueba") === "1" || (params.get("modo") || "").toLowerCase() === "prueba";
 
   if (window.lucide) window.lucide.createIcons();
+
+  bindInteractiveFields();
 
   setTimeout(() => {
     hideElement(viewInitialCheck);
@@ -65,6 +64,15 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   }, 600);
 });
+
+function bindInteractiveFields() {
+  document.querySelectorAll('input[name="q7"]').forEach((input) => {
+    input.addEventListener("change", () => toggleOtherPlanField(input.value === "Si"));
+  });
+  document.querySelectorAll('input[name="q9"]').forEach((input) => {
+    input.addEventListener("change", () => toggleObservationsRequired(input.value === "Si"));
+  });
+}
 
 function showElement(el) {
   if (el) el.classList.remove("hidden");
@@ -84,23 +92,28 @@ function hideToast() {
   errorToast.classList.add("hidden");
 }
 
+function applyClientContext() {
+  document.getElementById("client-badge-name").textContent = clientData?.nombre || "-";
+  document.getElementById("client-badge-model").textContent = clientData?.modelo || "-";
+  document.getElementById("span-modelo").textContent = clientData?.modelo || "el modelo informado";
+  document.getElementById("client-badge-advisor").textContent = clientData?.asesor || "-";
+  document.getElementById("client-badge-quote").textContent = clientData?.montoCuota2 ? `$ ${clientData.montoCuota2}` : "-";
+  document.getElementById("input-q6").value = clientData?.asesor || "";
+  document.getElementById("input-q4a").placeholder = clientData?.montoCuota2 ? `Ej: $ ${clientData.montoCuota2}` : "Ej: $ 185000";
+}
+
 function startDemoMode() {
   validatedDni = "00000000";
   clientData = {
     nombre: "Cliente de prueba",
-    modelo: "Plan Autosol demo",
+    modelo: "Amarok demo",
     asesor: "Asesor demo",
-    montoCuota2: "0",
+    montoCuota2: "185000",
   };
 
   hideElement(viewTokenError);
   hideElement(viewStepValidation);
-  document.getElementById("client-badge-name").textContent = clientData.nombre;
-  document.getElementById("client-badge-model").textContent = clientData.modelo;
-  document.getElementById("span-modelo").textContent = clientData.modelo;
-  document.getElementById("client-badge-advisor").textContent = clientData.asesor;
-  document.getElementById("client-badge-quote").textContent = "$ 0";
-  populateVendors(["Asesor demo", "Vendedor demo", "Otro vendedor"]);
+  applyClientContext();
   showElement(progressContainer);
   showElement(surveyQuestionsContainer);
   currentStep = 2;
@@ -135,12 +148,7 @@ async function validateDni(event) {
     if (data.status === "OK") {
       validatedDni = dniVal;
       clientData = data.cliente;
-      document.getElementById("client-badge-name").textContent = clientData.nombre || "-";
-      document.getElementById("client-badge-model").textContent = clientData.modelo || "-";
-      document.getElementById("span-modelo").textContent = clientData.modelo || "-";
-      document.getElementById("client-badge-advisor").textContent = clientData.asesor || "-";
-      document.getElementById("client-badge-quote").textContent = clientData.montoCuota2 ? `$ ${clientData.montoCuota2}` : "-";
-      populateVendors(data.vendedores || []);
+      applyClientContext();
       showElement(progressContainer);
       showElement(surveyQuestionsContainer);
       currentStep = 2;
@@ -163,33 +171,6 @@ async function validateDni(event) {
     showElement(viewStepValidation);
     showToast("Error de conexion. Verifique su acceso a internet e intente nuevamente.");
   }
-}
-
-function populateVendors(vendors) {
-  const select = document.getElementById("input-q9");
-  select.innerHTML = '<option value="" disabled selected>Seleccione su vendedor</option>';
-  const normalized = [...new Set((vendors || []).map((vendor) => String(vendor || "").trim()).filter(Boolean))];
-
-  if (clientData?.asesor && !normalized.includes(clientData.asesor)) {
-    normalized.unshift(clientData.asesor);
-  }
-
-  normalized.sort((a, b) => a.localeCompare(b, "es"));
-
-  normalized.forEach((vendor) => {
-    const option = document.createElement("option");
-    option.value = vendor;
-    option.textContent = vendor;
-    select.appendChild(option);
-  });
-  const extra = document.createElement("option");
-  extra.value = "Otro";
-  extra.textContent = "Otro";
-  select.appendChild(extra);
-
-  select.onchange = () => {
-    document.getElementById("wrapper-q9-otro").classList.toggle("hidden", select.value !== "Otro");
-  };
 }
 
 function updateStepUI() {
@@ -229,63 +210,44 @@ function getRadioValue(name) {
 }
 
 function validateCurrentStep() {
-  if (currentStep === 2) return getRadioValue("q1") && getRadioValue("q2") && getRadioValue("q3") && getRadioValue("q4");
-
-  if (currentStep === 3) {
-    const q5 = getRadioValue("q5");
-    const q6 = document.getElementById("input-q6").value.trim();
-    const q7 = document.getElementById("input-q7").value.trim();
-    const q8 = getRadioValue("q8");
-    if (!q5 || !q6 || !q7 || !q8) return false;
-    if (["t. credito", "t. debito", "debito/ CBU"].includes(q8)) {
-      return !!getRadioValue("q8b") && !!getRadioValue("q8c");
-    }
+  if (currentStep === 2) {
+    const q4 = getRadioValue("q4");
+    if (!(getRadioValue("q1") && getRadioValue("q2") && getRadioValue("q3") && q4)) return false;
+    if (q4 === "Si" && !document.getElementById("input-q4a").value.trim()) return false;
     return true;
   }
 
+  if (currentStep === 3) {
+    return !!(
+      document.getElementById("input-q5").value.trim() &&
+      getRadioValue("q5a") &&
+      document.getElementById("input-q5b").value.trim()
+    );
+  }
+
   if (currentStep === 4) {
-    const q9 = document.getElementById("input-q9").value;
-    const q10 = getRadioValue("q10");
-    const q11 = getRadioValue("q11");
-    if (!q9 || !q10 || !q11) return false;
-    if (q9 === "Otro") return !!document.getElementById("input-q9-otro").value.trim();
+    const q7 = getRadioValue("q7");
+    if (!(document.getElementById("input-q6").value.trim() && q7 && getRadioValue("q8"))) return false;
+    if (q7 === "Si" && !document.getElementById("input-q7a").value.trim()) return false;
     return true;
   }
 
   if (currentStep === 5) {
-    const q12 = document.getElementById("input-q12").value.trim();
-    const q13 = getRadioValue("q13");
-    const q14 = getRadioValue("q14");
-    const q15 = getRadioValue("q15");
-    if (!q12 || !q13 || !q14 || !q15) return false;
-    if (q13 === "Si" && !document.getElementById("input-q13a").value.trim()) return false;
-    if ((q15 === "Si" || q15 === "Se lo prometieron pero no lo recibio") && !document.getElementById("input-q15a").value.trim()) return false;
+    const q9 = getRadioValue("q9");
+    if (!q9) return false;
+    if (q9 === "Si" && !document.getElementById("input-q10").value.trim()) return false;
     return true;
-  }
-
-  if (currentStep === 6) {
-    const q17 = getRadioValue("q17");
-    if (!q17) return false;
-    if (q17 === "Si" && !document.getElementById("input-q16").value.trim()) return false;
   }
 
   return true;
 }
 
-function toggleDebitQuestions(show) {
-  document.getElementById("debit-conditional-fields").classList.toggle("hidden", !show);
-}
-
-function toggleUsedVehicleField(show) {
-  document.getElementById("used-vehicle-conditional").classList.toggle("hidden", !show);
-}
-
-function toggleBenefitField(show) {
-  document.getElementById("benefit-conditional").classList.toggle("hidden", !show);
+function toggleOtherPlanField(show) {
+  document.getElementById("other-plan-conditional").classList.toggle("hidden", !show);
 }
 
 function toggleObservationsRequired(required) {
-  document.getElementById("q16-required-helper").classList.toggle("hidden", !required);
+  document.getElementById("q10-required-helper").classList.toggle("hidden", !required);
 }
 
 async function submitSurvey() {
@@ -294,32 +256,21 @@ async function submitSurvey() {
   showElement(viewLoadingOverlay);
   loadingOverlayText.textContent = isDemoMode ? "Cerrando modo prueba..." : "Guardando validacion...";
 
-  const q9Value = document.getElementById("input-q9").value === "Otro"
-    ? document.getElementById("input-q9-otro").value.trim()
-    : document.getElementById("input-q9").value;
-
   const respuestas = {
     q1: getRadioValue("q1"),
     q2: getRadioValue("q2"),
     q3: getRadioValue("q3"),
     q4: getRadioValue("q4"),
-    q5: getRadioValue("q5"),
+    q4a: document.getElementById("input-q4a").value.trim(),
+    q5: document.getElementById("input-q5").value.trim(),
+    q5a: getRadioValue("q5a"),
+    q5b: document.getElementById("input-q5b").value.trim(),
     q6: document.getElementById("input-q6").value.trim(),
-    q7: document.getElementById("input-q7").value.trim(),
+    q7: getRadioValue("q7"),
+    q7a: document.getElementById("input-q7a").value.trim(),
     q8: getRadioValue("q8"),
-    q8b: getRadioValue("q8b"),
-    q8c: getRadioValue("q8c"),
-    q9: q9Value,
-    q10: getRadioValue("q10"),
-    q11: getRadioValue("q11"),
-    q12: document.getElementById("input-q12").value.trim(),
-    q13: getRadioValue("q13"),
-    q13a: document.getElementById("input-q13a").value.trim(),
-    q14: getRadioValue("q14"),
-    q15: getRadioValue("q15"),
-    beneficioDetalle: document.getElementById("input-q15a").value.trim(),
-    q16: document.getElementById("input-q16").value.trim(),
-    q17: getRadioValue("q17"),
+    q9: getRadioValue("q9"),
+    q10: document.getElementById("input-q10").value.trim(),
   };
 
   try {
@@ -363,6 +314,3 @@ async function submitSurvey() {
     showToast("Error de red. No pudimos guardar su encuesta. Compruebe su conexion e intente nuevamente.");
   }
 }
-
-
-

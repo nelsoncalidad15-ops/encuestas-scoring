@@ -114,86 +114,60 @@
               </div>
               <div class="space-y-4">
                 <div class="space-y-2">
-                  <p class="text-sm font-semibold">1. Le informaron que accedio al plan de <span id="span-modelo" class="text-autosol-primary">...</span>, mediante el cual financia un porcentaje del valor del vehiculo. Ya contaba con esa informacion?</p>
-                  <div class="grid gap-2">
-                    <label class="chip-option"><input type="radio" name="q1" value="Si" required /><span>Si</span></label>
-                    <label class="chip-option"><input type="radio" name="q1" value="No" /><span>No</span></label>
-                    <label class="chip-option"><input type="radio" name="q1" value="No estoy seguro/a" /><span>No estoy seguro/a</span></label>
+                  <p class="text-sm font-semibold">1. Le informamos que accedio al plan exclusivo de <span id="span-modelo" class="text-autosol-primary">...</span>, a traves del cual financia un porcentaje del valor del vehiculo. Lo sabia?</p>
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <label class="chip-option-small"><input type="radio" name="q1" value="Si" required /><span>Si</span></label>
+                    <label class="chip-option-small"><input type="radio" name="q1" value="No" /><span>No</span></label>
                   </div>
                 </div>
                 <div class="space-y-2 border-t border-autosol-border pt-3">
-                  <p class="text-sm font-semibold">2. Le informaron que puede licitar a partir de la cuota 2?</p>
-                  <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <p class="text-sm font-semibold">2. Le informaron que puede licitar con ese porcentaje a partir de la cuota 2?</p>
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <label class="chip-option-small"><input type="radio" name="q2" value="Si" required /><span>Si</span></label>
                     <label class="chip-option-small"><input type="radio" name="q2" value="No" /><span>No</span></label>
-                    <label class="chip-option-small"><input type="radio" name="q2" value="No recuerdo" /><span>No recuerdo</span></label>
                   </div>
                 </div>
                 <div class="space-y-2 border-t border-autosol-border pt-3">
-                  <p class="text-sm font-semibold">3. Le informaron que su plan puede incluir adjudicacion asegurada en cuota 8, 12 o 24, segun corresponda?</p>
-                  <div class="grid grid-cols-3 gap-2">
+                  <p class="text-sm font-semibold">3. Le informaron que tiene adjudicacion asegurada en cuota 8, 12 o 24 segun el plan?</p>
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <label class="chip-option-small"><input type="radio" name="q3" value="Si" required /><span>Si</span></label>
                     <label class="chip-option-small"><input type="radio" name="q3" value="No" /><span>No</span></label>
-                    <label class="chip-option-small"><input type="radio" name="q3" value="No recuerdo" /><span>No recuerdo</span></label>
                   </div>
                 </div>
                 <div class="space-y-2 border-t border-autosol-border pt-3">
-                  <p class="text-sm font-semibold">4. Su asesor le explico la diferencia entre licitar y adjudicar?</p>
-                  <div class="grid grid-cols-3 gap-2">
+                  <p class="text-sm font-semibold">4. El vendedor le informo el monto estimado de la cuota 2?</p>
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <label class="chip-option-small"><input type="radio" name="q4" value="Si" required /><span>Si</span></label>
                     <label class="chip-option-small"><input type="radio" name="q4" value="No" /><span>No</span></label>
-                    <label class="chip-option-small"><input type="radio" name="q4" value="Parcialmente" /><span>Parcialmente</span></label>
                   </div>
+                </div>
+                <div class="space-y-1.5 border-t border-autosol-border pt-3">
+                  <label for="input-q4a" class="block text-sm font-semibold">4.a Cuanto es aproximadamente?</label>
+                  <input id="input-q4a" type="text" class="block w-full rounded-xl border border-autosol-border bg-autosol-light/40 px-3 py-2.5 text-sm outline-none focus:border-autosol-primary focus:ring-2 focus:ring-autosol-primary/15" placeholder="Ej: $ 185000" />
                 </div>
               </div>
             </div>
 
             <div id="step-panel-3" class="hidden space-y-5">
               <div class="space-y-4">
-                <div class="space-y-2">
-                  <p class="text-sm font-semibold">5. El vendedor le informo el monto estimado de la cuota 2?</p>
-                  <div class="grid grid-cols-3 gap-2">
-                    <label class="chip-option-small"><input type="radio" name="q5" value="Si" required /><span>Si</span></label>
-                    <label class="chip-option-small"><input type="radio" name="q5" value="No" /><span>No</span></label>
-                    <label class="chip-option-small"><input type="radio" name="q5" value="No recuerdo" /><span>No recuerdo</span></label>
-                  </div>
-                </div>
-                <div class="space-y-1.5 border-t border-autosol-border pt-3">
-                  <label for="input-q6" class="block text-sm font-semibold">6. Cuanto pago en la primera cuota y por que medio la pago? *</label>
-                  <input id="input-q6" type="text" required class="block w-full rounded-xl border border-autosol-border bg-autosol-light/40 px-3 py-2.5 text-sm outline-none focus:border-autosol-primary focus:ring-2 focus:ring-autosol-primary/15" placeholder="Ej: Pague $130.000 con tarjeta" />
-                </div>
-                <div class="space-y-1.5 border-t border-autosol-border pt-3">
-                  <label for="input-q7" class="block text-sm font-semibold">7. Cuando pago la primera cuota? *</label>
-                  <input id="input-q7" type="date" required class="block w-full rounded-xl border border-autosol-border bg-autosol-light/40 px-3 py-2.5 text-sm outline-none focus:border-autosol-primary focus:ring-2 focus:ring-autosol-primary/15" />
+                <div class="space-y-1.5">
+                  <label for="input-q5" class="block text-sm font-semibold">5. Cuanto pago en la primera cuota? *</label>
+                  <input id="input-q5" type="text" required class="block w-full rounded-xl border border-autosol-border bg-autosol-light/40 px-3 py-2.5 text-sm outline-none focus:border-autosol-primary focus:ring-2 focus:ring-autosol-primary/15" placeholder="Ej: $ 130000" />
                 </div>
                 <div class="space-y-2 border-t border-autosol-border pt-3">
-                  <p class="text-sm font-semibold">8. Como seguira pagando su plan? *</p>
-                  <div class="grid gap-2 md:grid-cols-2">
-                    <label class="chip-option"><input type="radio" name="q8" value="t. credito" required onclick="toggleDebitQuestions(true)" /><span>Debito Automatico (Tarjeta de Credito)</span></label>
-                    <label class="chip-option"><input type="radio" name="q8" value="t. debito" onclick="toggleDebitQuestions(true)" /><span>Debito Automatico (Tarjeta de Debito)</span></label>
-                    <label class="chip-option"><input type="radio" name="q8" value="debito/ CBU" onclick="toggleDebitQuestions(true)" /><span>Debito Automatico (CBU / Cuenta)</span></label>
-                    <label class="chip-option"><input type="radio" name="q8" value="transferencia" onclick="toggleDebitQuestions(false)" /><span>Transferencia bancaria</span></label>
-                    <label class="chip-option"><input type="radio" name="q8" value="efectivo/cupon" onclick="toggleDebitQuestions(false)" /><span>Pago en efectivo / cupon</span></label>
+                  <p class="text-sm font-semibold">5.a Acepto adhesion al debito automatico?</p>
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <label class="chip-option-small"><input type="radio" name="q5a" value="Si" required /><span>Si</span></label>
+                    <label class="chip-option-small"><input type="radio" name="q5a" value="No" /><span>No</span></label>
                   </div>
                 </div>
-                <div id="debit-conditional-fields" class="hidden space-y-4 rounded-2xl border border-autosol-border bg-autosol-light/30 p-4">
-                  <div class="space-y-2">
-                    <p class="text-xs font-semibold uppercase tracking-[0.24em] text-autosol-primary">Informacion de debito automatico</p>
-                    <p class="text-sm font-semibold">8.b Le hicieron firmar el anexo de alta de debito automatico o sabe que esta incluido en su contrato?</p>
-                    <div class="grid grid-cols-3 gap-2">
-                      <label class="chip-option-small"><input type="radio" name="q8b" value="Si" /><span>Si</span></label>
-                      <label class="chip-option-small"><input type="radio" name="q8b" value="No" /><span>No</span></label>
-                      <label class="chip-option-small"><input type="radio" name="q8b" value="No recuerda" /><span>No recuerda</span></label>
-                    </div>
-                  </div>
-                  <div class="space-y-2 border-t border-autosol-border pt-3">
-                    <p class="text-sm font-semibold">8.c Entendio como funciona y que la permanencia minima es hasta cuota 6?</p>
-                    <div class="grid grid-cols-3 gap-2">
-                      <label class="chip-option-small"><input type="radio" name="q8c" value="Si" /><span>Si</span></label>
-                      <label class="chip-option-small"><input type="radio" name="q8c" value="No" /><span>No</span></label>
-                      <label class="chip-option-small"><input type="radio" name="q8c" value="Parcialmente" /><span>Parcialmente</span></label>
-                    </div>
-                  </div>
+                <div class="rounded-2xl border border-autosol-border bg-autosol-light/30 p-4 text-sm text-autosol-accent">
+                  <p class="text-xs font-semibold uppercase tracking-[0.24em] text-autosol-primary">Informativo</p>
+                  <p class="mt-2">La permanencia minima del debito automatico es hasta cuota 6.</p>
+                </div>
+                <div class="space-y-1.5 border-t border-autosol-border pt-3">
+                  <label for="input-q5b" class="block text-sm font-semibold">5.b Cuando pago la primera cuota estimativamente? *</label>
+                  <input id="input-q5b" type="date" required class="block w-full rounded-xl border border-autosol-border bg-autosol-light/40 px-3 py-2.5 text-sm outline-none focus:border-autosol-primary focus:ring-2 focus:ring-autosol-primary/15" />
                 </div>
               </div>
             </div>
@@ -201,32 +175,30 @@
             <div id="step-panel-4" class="hidden space-y-5">
               <div class="space-y-4">
                 <div class="space-y-1.5">
-                  <label for="input-q9" class="block text-sm font-semibold">9. Quien es su vendedor? *</label>
-                  <select id="input-q9" required class="block w-full rounded-xl border border-autosol-border bg-white px-3 py-2.5 text-sm outline-none focus:border-autosol-primary focus:ring-2 focus:ring-autosol-primary/15">
-                    <option value="" disabled selected>Seleccione su vendedor</option>
-                  </select>
-                  <div id="wrapper-q9-otro" class="hidden space-y-1 rounded-xl border border-autosol-border bg-autosol-light/30 p-3">
-                    <label for="input-q9-otro" class="text-xs font-semibold uppercase tracking-[0.18em] text-autosol-accent">Escriba el nombre de su vendedor</label>
-                    <input id="input-q9-otro" type="text" class="block w-full rounded-xl border border-autosol-border bg-white px-3 py-2 text-sm outline-none focus:border-autosol-primary focus:ring-2 focus:ring-autosol-primary/15" />
-                  </div>
+                  <label for="input-q6" class="block text-sm font-semibold">6. Quien es su vendedor? *</label>
+                  <input id="input-q6" type="text" required class="block w-full rounded-xl border border-autosol-border bg-autosol-light/40 px-3 py-2.5 text-sm outline-none focus:border-autosol-primary focus:ring-2 focus:ring-autosol-primary/15" placeholder="Nombre del vendedor" />
                 </div>
                 <div class="space-y-2 border-t border-autosol-border pt-3">
-                  <p class="text-sm font-semibold">10. Como califica de 1 a 5 la atencion y amabilidad del vendedor?</p>
-                  <div class="grid grid-cols-3 sm:grid-cols-5 gap-2">
-                    <label class="chip-option-small"><input type="radio" name="q10" value="1" required /><span>1</span></label>
-                    <label class="chip-option-small"><input type="radio" name="q10" value="2" /><span>2</span></label>
-                    <label class="chip-option-small"><input type="radio" name="q10" value="3" /><span>3</span></label>
-                    <label class="chip-option-small"><input type="radio" name="q10" value="4" /><span>4</span></label>
-                    <label class="chip-option-small"><input type="radio" name="q10" value="5" /><span>5</span></label>
+                  <p class="text-sm font-semibold">7. Estuvo pagando algun otro Plan de Ahorro de un 0 km recientemente?</p>
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <label class="chip-option-small"><input type="radio" name="q7" value="Si" required /><span>Si</span></label>
+                    <label class="chip-option-small"><input type="radio" name="q7" value="No" /><span>No</span></label>
                   </div>
                 </div>
+                <div id="other-plan-conditional" class="hidden space-y-1.5 rounded-xl border border-autosol-border bg-autosol-light/30 p-3.5">
+                  <label for="input-q7a" class="text-xs font-semibold uppercase tracking-[0.18em] text-autosol-accent">Si respondio Si, indique marca y hasta que mes pago *</label>
+                  <input id="input-q7a" type="text" class="block w-full rounded-xl border border-autosol-border bg-white px-3 py-2 text-sm outline-none focus:border-autosol-primary focus:ring-2 focus:ring-autosol-primary/15" placeholder="Ej: Fiat hasta marzo 2026" />
+                </div>
                 <div class="space-y-2 border-t border-autosol-border pt-3">
-                  <p class="text-sm font-semibold">11. El vendedor supo explicar caracteristicas especificas de la unidad?</p>
+                  <p class="text-sm font-semibold">8. Como conocio la propuesta?</p>
                   <div class="grid gap-2 md:grid-cols-2">
-                    <label class="chip-option"><input type="radio" name="q11" value="Si" required /><span>Si</span></label>
-                    <label class="chip-option"><input type="radio" name="q11" value="No" /><span>No</span></label>
-                    <label class="chip-option"><input type="radio" name="q11" value="Parcialmente" /><span>Parcialmente</span></label>
-                    <label class="chip-option"><input type="radio" name="q11" value="No corresponde / no recuerdo" /><span>No corresponde / no recuerdo</span></label>
+                    <label class="chip-option"><input type="radio" name="q8" value="Redes sociales" required /><span>Redes sociales</span></label>
+                    <label class="chip-option"><input type="radio" name="q8" value="Salon" /><span>Salon</span></label>
+                    <label class="chip-option"><input type="radio" name="q8" value="TV" /><span>TV</span></label>
+                    <label class="chip-option"><input type="radio" name="q8" value="Radio" /><span>Radio</span></label>
+                    <label class="chip-option"><input type="radio" name="q8" value="Referido" /><span>Referido</span></label>
+                    <label class="chip-option"><input type="radio" name="q8" value="WhatsApp" /><span>WhatsApp</span></label>
+                    <label class="chip-option md:col-span-2"><input type="radio" name="q8" value="Otro" /><span>Otro</span></label>
                   </div>
                 </div>
               </div>
@@ -234,63 +206,17 @@
 
             <div id="step-panel-5" class="hidden space-y-5">
               <div class="space-y-4">
-                <div class="space-y-1.5">
-                  <label for="input-q12" class="block text-sm font-semibold">12. Estuvo pagando algun otro plan de ahorro de un 0 km recientemente? De que marca? Hasta que mes pago? *</label>
-                  <input id="input-q12" type="text" required class="block w-full rounded-xl border border-autosol-border bg-autosol-light/40 px-3 py-2.5 text-sm outline-none focus:border-autosol-primary focus:ring-2 focus:ring-autosol-primary/15" placeholder="Ej: No, ninguno. / Si, un Fiat hasta marzo de 2026" />
-                </div>
-                <div class="space-y-2 border-t border-autosol-border pt-3">
-                  <p class="text-sm font-semibold">13. Tiene un vehiculo usado para entregar como parte de pago?</p>
-                  <div class="grid grid-cols-3 gap-2">
-                    <label class="chip-option-small"><input type="radio" name="q13" value="Si" required onclick="toggleUsedVehicleField(true)" /><span>Si</span></label>
-                    <label class="chip-option-small"><input type="radio" name="q13" value="No" onclick="toggleUsedVehicleField(false)" /><span>No</span></label>
-                    <label class="chip-option-small"><input type="radio" name="q13" value="Aun no sabe" onclick="toggleUsedVehicleField(false)" /><span>Aun no sabe</span></label>
-                  </div>
-                </div>
-                <div id="used-vehicle-conditional" class="hidden space-y-1.5 rounded-xl border border-autosol-border bg-autosol-light/30 p-3.5">
-                  <label for="input-q13a" class="text-xs font-semibold uppercase tracking-[0.18em] text-autosol-accent">Especifique el vehiculo usado *</label>
-                  <input id="input-q13a" type="text" class="block w-full rounded-xl border border-autosol-border bg-white px-3 py-2 text-sm outline-none focus:border-autosol-primary focus:ring-2 focus:ring-autosol-primary/15" placeholder="Ej: Gol Trend 2018, 85.000 km" />
-                </div>
-                <div class="space-y-2 border-t border-autosol-border pt-3">
-                  <p class="text-sm font-semibold">14. Como conocio la propuesta? *</p>
-                  <div class="grid gap-2 md:grid-cols-2">
-                    <label class="chip-option"><input type="radio" name="q14" value="Redes sociales" required /><span>Redes sociales</span></label>
-                    <label class="chip-option"><input type="radio" name="q14" value="Referido" /><span>Referido</span></label>
-                    <label class="chip-option"><input type="radio" name="q14" value="Asesor / vendedor" /><span>Asesor / vendedor</span></label>
-                    <label class="chip-option"><input type="radio" name="q14" value="Local comercial" /><span>Local comercial</span></label>
-                    <label class="chip-option"><input type="radio" name="q14" value="WhatsApp" /><span>WhatsApp</span></label>
-                    <label class="chip-option"><input type="radio" name="q14" value="Web" /><span>Web</span></label>
-                    <label class="chip-option md:col-span-2"><input type="radio" name="q14" value="Otro" /><span>Otro medio / publicidad publica</span></label>
-                  </div>
-                </div>
-                <div class="space-y-2 border-t border-autosol-border pt-3">
-                  <p class="text-sm font-semibold">15. Recibio algun beneficio o regalo por haberse suscripto?</p>
-                  <div class="grid gap-2">
-                    <label class="chip-option"><input type="radio" name="q15" value="Si" required onclick="toggleBenefitField(true)" /><span>Si</span></label>
-                    <label class="chip-option"><input type="radio" name="q15" value="No" onclick="toggleBenefitField(false)" /><span>No</span></label>
-                    <label class="chip-option"><input type="radio" name="q15" value="Se lo prometieron pero no lo recibio" onclick="toggleBenefitField(true)" /><span>Se lo prometieron pero no lo recibio</span></label>
-                    <label class="chip-option"><input type="radio" name="q15" value="No recuerda" onclick="toggleBenefitField(false)" /><span>No recuerda</span></label>
-                  </div>
-                </div>
-                <div id="benefit-conditional" class="hidden space-y-1.5 rounded-xl border border-autosol-border bg-autosol-light/30 p-3.5">
-                  <label for="input-q15a" class="text-xs font-semibold uppercase tracking-[0.18em] text-autosol-accent">Detalle del beneficio o regalo *</label>
-                  <input id="input-q15a" type="text" class="block w-full rounded-xl border border-autosol-border bg-white px-3 py-2 text-sm outline-none focus:border-autosol-primary focus:ring-2 focus:ring-autosol-primary/15" placeholder="Ej: Patentamiento, kit o bonificacion" />
-                </div>
-              </div>
-            </div>
-
-            <div id="step-panel-6" class="hidden space-y-5">
-              <div class="space-y-4">
-                <div class="space-y-1.5">
-                  <label id="label-q16" for="input-q16" class="block text-sm font-semibold">16. Desea agregar alguna observacion?</label>
-                  <textarea id="input-q16" rows="4" class="block w-full rounded-xl border border-autosol-border bg-autosol-light/40 px-3 py-2.5 text-sm outline-none focus:border-autosol-primary focus:ring-2 focus:ring-autosol-primary/15" placeholder="Escriba aqui cualquier aclaracion que considere importante"></textarea>
-                  <p id="q16-required-helper" class="hidden text-[11px] text-amber-700">Este campo es obligatorio si solicita que un asesor vuelva a contactarlo.</p>
-                </div>
-                <div class="space-y-2 border-t border-autosol-border pt-3">
-                  <p class="text-sm font-semibold">17. Necesita que un asesor vuelva a contactarlo? *</p>
+                <div class="space-y-2">
+                  <p class="text-sm font-semibold">9. Necesita que un asesor vuelva a contactarlo?</p>
                   <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <label class="chip-option-small"><input type="radio" name="q17" value="Si" required onclick="toggleObservationsRequired(true)" /><span>Si, por favor</span></label>
-                    <label class="chip-option-small"><input type="radio" name="q17" value="No" onclick="toggleObservationsRequired(false)" /><span>No</span></label>
+                    <label class="chip-option-small"><input type="radio" name="q9" value="Si" required /><span>Si</span></label>
+                    <label class="chip-option-small"><input type="radio" name="q9" value="No" /><span>No</span></label>
                   </div>
+                </div>
+                <div class="space-y-1.5 border-t border-autosol-border pt-3">
+                  <label id="label-q10" for="input-q10" class="block text-sm font-semibold">Observaciones</label>
+                  <textarea id="input-q10" rows="4" class="block w-full rounded-xl border border-autosol-border bg-autosol-light/40 px-3 py-2.5 text-sm outline-none focus:border-autosol-primary focus:ring-2 focus:ring-autosol-primary/15" placeholder="Escriba aqui cualquier aclaracion importante"></textarea>
+                  <p id="q10-required-helper" class="hidden text-[11px] text-amber-700">Este campo es obligatorio si solicita recontacto.</p>
                 </div>
               </div>
             </div>
