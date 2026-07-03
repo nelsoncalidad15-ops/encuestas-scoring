@@ -95,11 +95,57 @@ function hideToast() {
 function applyClientContext() {
   document.getElementById("client-badge-name").textContent = clientData?.nombre || "-";
   document.getElementById("client-badge-model").textContent = clientData?.modelo || "-";
-  document.getElementById("span-modelo").textContent = clientData?.modelo || "el modelo informado";
-  document.getElementById("client-badge-advisor").textContent = clientData?.asesor || "-";
-  document.getElementById("client-badge-quote").textContent = clientData?.montoCuota2 ? `$ ${clientData.montoCuota2}` : "-";
   document.getElementById("input-q6").value = clientData?.asesor || "";
   document.getElementById("input-q4a").placeholder = clientData?.montoCuota2 ? `Ej: $ ${clientData.montoCuota2}` : "Ej: $ 185000";
+}
+
+function setQuestionText(id, text) {
+  const el = document.getElementById(id);
+  if (el && text) el.textContent = text;
+}
+
+function setRadioOptions(name, options) {
+  if (!Array.isArray(options) || options.length === 0) return;
+  const radios = Array.from(document.querySelectorAll(`input[name="${name}"]`));
+  if (radios.length !== options.length) return;
+  radios.forEach((radio, index) => {
+    radio.value = options[index];
+    const label = radio.closest("label");
+    const span = label ? label.querySelector("span") : null;
+    if (span) span.textContent = options[index];
+  });
+}
+
+function applyQuestionConfig(preguntas) {
+  const q3Block = document.getElementById("q3-block");
+  if (!preguntas) {
+    if (q3Block) q3Block.classList.remove("hidden");
+    return;
+  }
+  const map = preguntas;
+  const targets = {
+    q1: "q1-text",
+    q2: "q2-text",
+    q3: "q3-text",
+    q4: "q4-text",
+    q4a: "q4a-label",
+    q5: "q5-label",
+    q5a: "q5a-text",
+    q5b: "q5b-label",
+    q6: "q6-label",
+    q7: "q7-text",
+    q7a: "q7a-label",
+    q8: "q8-text",
+    q9: "q9-text",
+    q10: "q10-label",
+  };
+
+  Object.keys(targets).forEach((key) => {
+    if (map[key]?.pregunta) setQuestionText(targets[key], map[key].pregunta);
+    if (map[key]?.opciones?.length) setRadioOptions(key, map[key].opciones);
+  });
+
+  if (q3Block) q3Block.classList.toggle("hidden", !map.q3);
 }
 
 function startDemoMode() {
@@ -149,6 +195,7 @@ async function validateDni(event) {
       validatedDni = dniVal;
       clientData = data.cliente;
       applyClientContext();
+      applyQuestionConfig(data.preguntas);
       showElement(progressContainer);
       showElement(surveyQuestionsContainer);
       currentStep = 2;
@@ -212,7 +259,8 @@ function getRadioValue(name) {
 function validateCurrentStep() {
   if (currentStep === 2) {
     const q4 = getRadioValue("q4");
-    if (!(getRadioValue("q1") && getRadioValue("q2") && getRadioValue("q3") && q4)) return false;
+    const q3Visible = !document.getElementById("q3-block")?.classList.contains("hidden");
+    if (!(getRadioValue("q1") && getRadioValue("q2") && (!q3Visible || getRadioValue("q3")) && q4)) return false;
     if (q4 === "Si" && !document.getElementById("input-q4a").value.trim()) return false;
     return true;
   }

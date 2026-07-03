@@ -6,6 +6,22 @@ import crypto from "crypto";
 
 dotenv.config();
 
+function clearBrokenLocalProxyEnv() {
+  const proxyKeys = [
+    "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY",
+    "http_proxy", "https_proxy", "all_proxy",
+    "GIT_HTTP_PROXY", "GIT_HTTPS_PROXY"
+  ];
+  for (const key of proxyKeys) {
+    const value = process.env[key];
+    if (value && value.includes("127.0.0.1:9")) {
+      delete process.env[key];
+    }
+  }
+}
+
+clearBrokenLocalProxyEnv();
+
 // Simple SHA-256 hashing for local simulation
 function generateHash(text: string, salt: string): string {
   return crypto
