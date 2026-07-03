@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="es" class="h-full bg-[#f5f5f0]">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Llamada de Scoring - Autosol</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+              display: ['Playfair Display', 'serif'],
+              sansDisplay: ['Space Grotesk', 'sans-serif'],
+            },
+            colors: {
+              autosol: {
+                dark: '#2D2D2A',
+                primary: '#5A5A40',
+                light: '#F5F5F0',
+                accent: '#8E8E85',
+                border: '#E0E0D6',
+                progressBg: '#EBEBE0'
+              }
+            }
+          }
+        }
+      };
+    </script>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://unpkg.com/lucide@latest"></script>
+  </head>
+  <body class="min-h-full bg-autosol-light font-sans text-autosol-dark antialiased">
+    <header class="sticky top-0 z-40 border-b border-autosol-border bg-white/95 backdrop-blur">
+      <div class="mx-auto flex max-w-5xl items-center justify-between px-3 py-3 sm:px-4 sm:py-4">
+        <div class="flex items-center gap-3">
+          <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-autosol-dark to-autosol-primary text-base font-sansDisplay font-bold text-white sm:h-10 sm:w-10 sm:text-lg">A</div>
+          <div>
+            <h1 class="font-display text-lg font-semibold sm:text-xl">Autosol</h1>
+            <p class="text-[9px] font-bold uppercase tracking-[0.24em] text-autosol-accent sm:text-[10px] sm:tracking-[0.28em]">Modo llamada interna</p>
+          </div>
+        </div>
+        <div class="rounded-full border border-autosol-border bg-autosol-light px-2.5 py-1 text-[11px] font-semibold text-autosol-primary sm:px-3 sm:text-xs">TMK</div>
+      </div>
+    </header>
+
+    <main class="mx-auto w-full max-w-5xl px-3 py-4 pb-16 sm:px-4 sm:py-6">
+      <div id="error-toast" class="hidden mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+        <span id="error-toast-message"></span>
+      </div>
+
+      <section id="call-card" class="overflow-hidden rounded-[1.6rem] border border-autosol-border bg-white shadow-sm sm:rounded-3xl">
+        <div class="border-b border-autosol-border bg-autosol-light/40 px-4 py-4 sm:px-6">
+          <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <p class="text-[10px] font-bold uppercase tracking-[0.28em] text-autosol-primary">Formulario interno</p>
+              <h2 class="mt-2 font-display text-[1.75rem] font-semibold leading-tight sm:text-2xl">Scoring por llamada</h2>
+              <p class="mt-2 max-w-2xl text-sm leading-relaxed text-autosol-accent">Use este modo cuando el cliente no complete el link por su cuenta y el operador de TMK haga la validacion telefonica.</p>
+            </div>
+            <div class="grid gap-2 rounded-2xl border border-autosol-border bg-white p-4 text-sm sm:grid-cols-2">
+              <div><span class="font-semibold text-autosol-accent">Cliente:</span> <span id="client-name">-</span></div>
+              <div><span class="font-semibold text-autosol-accent">Modelo:</span> <span id="client-model">-</span></div>
+              <div><span class="font-semibold text-autosol-accent">Vendedor:</span> <span id="client-asesor">-</span></div>
+              <div><span class="font-semibold text-autosol-accent">Solicitud:</span> <span id="client-solicitud">-</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div id="view-loading" class="py-12 text-center">
+          <div class="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-autosol-border border-t-autosol-primary"></div>
+          <p id="loading-text" class="text-sm text-autosol-accent">Cargando ficha de llamada...</p>
+        </div>
+
+        <div id="view-form" class="hidden p-4 sm:p-6 md:p-8">
+          <div class="mb-6 grid gap-3 lg:grid-cols-4">
+            <div class="rounded-2xl border border-autosol-border bg-autosol-light/40 p-4">
+              <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-autosol-accent">Plan</p>
+              <p id="client-plan" class="mt-2 text-sm font-semibold text-autosol-dark">-</p>
+            </div>
+            <div class="rounded-2xl border border-autosol-border bg-autosol-light/40 p-4">
+              <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-autosol-accent">Cuota 2</p>
+              <p id="client-cuota2" class="mt-2 text-sm font-semibold text-autosol-dark">-</p>
+            </div>
+            <div class="rounded-2xl border border-autosol-border bg-autosol-light/40 p-4">
+              <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-autosol-accent">Telefono</p>
+              <p id="client-phone" class="mt-2 text-sm font-semibold text-autosol-dark">-</p>
+            </div>
+            <div class="rounded-2xl border border-autosol-border bg-autosol-light/40 p-4">
+              <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-autosol-accent">Sucursal</p>
+              <p id="client-branch" class="mt-2 text-sm font-semibold text-autosol-dark">-</p>
+            </div>
+          </div>
+
+          <form id="call-form" class="space-y-6">
+            <section class="rounded-2xl border border-autosol-border p-4 sm:p-5">
+              <h3 class="font-display text-xl font-semibold">Plan</h3>
+              <div class="mt-4 space-y-4">
+                <div class="space-y-2">
+                  <p id="q1-text" class="text-sm font-semibold"></p>
+                  <div class="grid gap-2 sm:grid-cols-2">
+                    <label class="chip-option-small"><input type="radio" name="q1" value="Si" required /><span>Si</span></label>
+                    <label class="chip-option-small"><input type="radio" name="q1" value="No" /><span>No</span></label>
+                  </div>
+                </div>
+                <div class="space-y-2 border-t border-autosol-border pt-3">
+                  <p id="q2-text" class="text-sm font-semibold"></p>
+                  <div class="grid gap-2 sm:grid-cols-2">
+                    <label class="chip-option-small"><input type="radio" name="q2" value="Si" required /><span>Si</span></label>
+                    <label class="chip-option-small"><input type="radio" name="q2" value="No" /><span>No</span></label>
+                  </div>
+                </div>
+                <div id="q3-block" class="space-y-2 border-t border-autosol-border pt-3">
+                  <p id="q3-text" class="text-sm font-semibold"></p>
+                  <div class="grid gap-2 sm:grid-cols-2">
+                    <label class="chip-option-small"><input type="radio" name="q3" value="Si" required /><span>Si</span></label>
+                    <label class="chip-option-small"><input type="radio" name="q3" value="No" /><span>No</span></label>
+                  </div>
+                </div>
+                <div class="space-y-2 border-t border-autosol-border pt-3">
+                  <p id="q4-text" class="text-sm font-semibold"></p>
+                  <div class="grid gap-2 sm:grid-cols-2">
+                    <label class="chip-option-small"><input type="radio" name="q4" value="Si" required /><span>Si</span></label>
+                    <label class="chip-option-small"><input type="radio" name="q4" value="No" /><span>No</span></label>
+                  </div>
+                </div>
+                <div class="space-y-1.5 border-t border-autosol-border pt-3">
+                  <label id="q4a-label" for="input-q4a" class="block text-sm font-semibold"></label>
+                  <input id="input-q4a" type="text" class="block w-full rounded-xl border border-autosol-border bg-autosol-light/40 px-3 py-2.5 text-sm outline-none focus:border-autosol-primary focus:ring-2 focus:ring-autosol-primary/15" placeholder="Ej: $ 185000" />
+                </div>
+              </div>
+            </section>
+
+            <section class="rounded-2xl border border-autosol-border p-4 sm:p-5">
+              <h3 class="font-display text-xl font-semibold">Pagos</h3>
+              <div class="mt-4 space-y-4">
+                <div class="space-y-1.5">
+                  <label id="q5-label" for="input-q5" class="block text-sm font-semibold"></label>
+                  <input id="input-q5" type="text" class="block w-full rounded-xl border border-autosol-border bg-autosol-light/40 px-3 py-2.5 text-sm outline-none focus:border-autosol-primary focus:ring-2 focus:ring-autosol-primary/15" />
+                </div>
+                <div class="space-y-2 border-t border-autosol-border pt-3">
+                  <p id="q5a-text" class="text-sm font-semibold"></p>
+                  <div class="grid gap-2 sm:grid-cols-2">
+                    <label class="chip-option-small"><input type="radio" name="q5a" value="Si" required /><span>Si</span></label>
+                    <label class="chip-option-small"><input type="radio" name="q5a" value="No" /><span>No</span></label>
+                  </div>
+                </div>
+                <div class="rounded-2xl border border-autosol-border bg-autosol-light/30 p-4 text-sm text-autosol-accent">
+                  La permanencia minima del debito automatico es hasta cuota 6.
+                </div>
+                <div class="space-y-1.5 border-t border-autosol-border pt-3">
+                  <label id="q5b-label" for="input-q5b" class="block text-sm font-semibold"></label>
+                  <input id="input-q5b" type="date" class="block w-full rounded-xl border border-autosol-border bg-autosol-light/40 px-3 py-2.5 text-sm outline-none focus:border-autosol-primary focus:ring-2 focus:ring-autosol-primary/15" />
+                </div>
+              </div>
+            </section>
+
+            <section class="rounded-2xl border border-autosol-border p-4 sm:p-5">
+              <h3 class="font-display text-xl font-semibold">Vendedor y origen</h3>
+              <div class="mt-4 space-y-4">
+                <div class="space-y-1.5">
+                  <label id="q6-label" for="input-q6" class="block text-sm font-semibold"></label>
+                  <input id="input-q6" type="text" class="block w-full rounded-xl border border-autosol-border bg-autosol-light/40 px-3 py-2.5 text-sm outline-none focus:border-autosol-primary focus:ring-2 focus:ring-autosol-primary/15" />
+                </div>
+                <div class="space-y-2 border-t border-autosol-border pt-3">
+                  <p id="q7-text" class="text-sm font-semibold"></p>
+                  <div class="grid gap-2 sm:grid-cols-2">
+                    <label class="chip-option-small"><input type="radio" name="q7" value="Si" required /><span>Si</span></label>
+                    <label class="chip-option-small"><input type="radio" name="q7" value="No" /><span>No</span></label>
+                  </div>
+                </div>
+                <div id="other-plan-conditional" class="hidden space-y-1.5 rounded-xl border border-autosol-border bg-autosol-light/30 p-3.5">
+                  <label id="q7a-label" for="input-q7a" class="text-xs font-semibold uppercase tracking-[0.18em] text-autosol-accent"></label>
+                  <input id="input-q7a" type="text" class="block w-full rounded-xl border border-autosol-border bg-white px-3 py-2 text-sm outline-none focus:border-autosol-primary focus:ring-2 focus:ring-autosol-primary/15" />
+                </div>
+                <div class="space-y-2 border-t border-autosol-border pt-3">
+                  <p id="q8-text" class="text-sm font-semibold"></p>
+                  <div class="grid gap-2 md:grid-cols-2">
+                    <label class="chip-option"><input type="radio" name="q8" value="Redes sociales" required /><span>Redes sociales</span></label>
+                    <label class="chip-option"><input type="radio" name="q8" value="Salon" /><span>Salon</span></label>
+                    <label class="chip-option"><input type="radio" name="q8" value="TV" /><span>TV</span></label>
+                    <label class="chip-option"><input type="radio" name="q8" value="Radio" /><span>Radio</span></label>
+                    <label class="chip-option"><input type="radio" name="q8" value="Referido" /><span>Referido</span></label>
+                    <label class="chip-option"><input type="radio" name="q8" value="WhatsApp" /><span>WhatsApp</span></label>
+                    <label class="chip-option md:col-span-2"><input type="radio" name="q8" value="Otro" /><span>Otro</span></label>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="rounded-2xl border border-autosol-border p-4 sm:p-5">
+              <h3 class="font-display text-xl font-semibold">Cierre</h3>
+              <div class="mt-4 space-y-4">
+                <div class="space-y-2">
+                  <p id="q9-text" class="text-sm font-semibold"></p>
+                  <div class="grid gap-2 sm:grid-cols-2">
+                    <label class="chip-option-small"><input type="radio" name="q9" value="Si" required /><span>Si</span></label>
+                    <label class="chip-option-small"><input type="radio" name="q9" value="No" /><span>No</span></label>
+                  </div>
+                </div>
+                <div class="space-y-1.5 border-t border-autosol-border pt-3">
+                  <label id="q10-label" for="input-q10" class="block text-sm font-semibold"></label>
+                  <textarea id="input-q10" rows="4" class="block w-full rounded-xl border border-autosol-border bg-autosol-light/40 px-3 py-2.5 text-sm outline-none focus:border-autosol-primary focus:ring-2 focus:ring-autosol-primary/15"></textarea>
+                  <p id="q10-required-helper" class="hidden text-[11px] text-amber-700">Este campo es obligatorio si solicita recontacto.</p>
+                </div>
+              </div>
+            </section>
+
+            <div class="flex flex-col gap-3 border-t border-autosol-border pt-5 sm:flex-row sm:justify-end">
+              <button id="btn-save-call" type="submit" class="rounded-xl bg-autosol-primary px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#4c4c37]">Guardar llamada</button>
+            </div>
+          </form>
+        </div>
+
+        <div id="view-success" class="hidden p-8 text-center">
+          <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 text-emerald-700">
+            <i data-lucide="badge-check" class="h-8 w-8"></i>
+          </div>
+          <h2 class="mb-2 font-display text-2xl font-semibold">Llamada guardada</h2>
+          <p class="mx-auto max-w-lg text-sm leading-relaxed text-autosol-accent">Las respuestas quedaron registradas en TMK y el scoring se recalculo sobre la misma fila.</p>
+        </div>
+      </section>
+    </main>
+
+    <script src="call.js"></script>
+  </body>
+</html>
