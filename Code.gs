@@ -2819,3 +2819,165 @@ function buscarFilaPorToken(token) {
   }
   return null;
 }
+
+/**************************************************************
+ * OVERRIDE FINAL - MENU SIMPLE + REVALIDACION DE RECHAZADOS
+ **************************************************************/
+
+var CAMPOS_RESETEO_REVALIDACION_ = [
+  "Q1_Conocia_plan_exclusivo",
+  "Q2_Informaron_licitacion_cuota_2",
+  "Q3_Informaron_adjudicacion_asegurada",
+  "Q4_Informaron_monto_cuota_2",
+  "Q4A_Monto_estimado_cuota_2",
+  "Q5_Monto_primera_cuota",
+  "Q5A_Acepto_debito_automatico",
+  "Q5B_Fecha_pago_primera_cuota",
+  "Q6_Quien_es_vendedor",
+  "Q7_Tuvo_otro_plan_reciente",
+  "Q7A_Detalle_otro_plan",
+  "Q8_Como_conocio_propuesta",
+  "Q9_Necesita_recontacto",
+  "Q10_Observaciones_cliente",
+  "RESULTADO_SCORING",
+  "MOTIVO_RESULTADO",
+  "REQUIERE_RECONTACTO",
+  "AREA_A_REVISAR",
+  "OBSERVACION_INTERNA",
+  "FECHA_RESPUESTA_WEB",
+  "FECHA_REALIZACION_SCORING",
+  "CANAL_SCORING",
+  "MOTIVO_DECISION",
+  "FECHA_DECISION",
+  "GESTIONADO_POR",
+  "OBSERVACION_TMK",
+  "FECHA_PROXIMO_CONTACTO",
+  "FECHA_ULTIMO_ENVIO_WPP",
+  "ULTIMO_CONTACTO_TMK"
+];
+
+function onOpen() {
+  try {
+    SpreadsheetApp.getUi()
+      .createMenu("Encuestas Autosol")
+      .addItem("Preparar planilla", "setupInicialDesdeMenu")
+      .addItem("Generar desde solicitudes", "procesarNuevosIngresosDesdeMenu")
+      .addItem("Actualizar TMK y rechazados", "actualizarHojasTMKDesdeMenu")
+      .addItem("Regenerar link fila seleccionada", "regenerarLinkFilaSeleccionadaDesdeMenu")
+      .addItem("Reparar links existentes", "regenerarLinksExistentesDesdeMenu")
+      .addToUi();
+  } catch (e) {
+    Logger.log("No se pudo crear el menu simple: " + e);
+  }
+}
+
+function actualizarHojasTMKDesdeMenu() {
+  mostrarToast(actualizarHojasTMK() + " " + actualizarVistasTMK_());
+}
+
+function regenerarLinkFilaSeleccionadaDesdeMenu() {
+  mostrarToast(regenerarLinkFilaSeleccionada_());
+}
+
+function regenerarLinkFilaSeleccionada_() {
+  ensureSheets();
+  ensureHeaders();
+
+  var activeSheet = SpreadsheetApp.getActiveSheet();
+  var rowIndex = SpreadsheetApp.getActiveRange() ? SpreadsheetApp.getActiveRange().getRow() : 0;
+  if (!activeSheet || rowIndex < 2) return "Seleccione una fila valida.";
+
+  var sheetName = activeSheet.getName();
+  if (sheetName !== "TMK - RECHAZADOS" && sheetName !== "TMK - JUJUY" && sheetName !== "TMK - SALTA") {
+    return "Abra una fila en TMK o en TMK - RECHAZADOS para regenerar el link.";
+  }
+
+  var map = getHeaderMapFlexible_(activeSheet);
+  var row = activeSheet.getRange(rowIndex, 1, 1, activeSheet.getLastColumn()).getValues()[0];
+  var idCliente = getVal_(row, map, "ID_CLIENTE");
+  var token = getVal_(row, map, "TOKEN");
+  var origen = buscarSolicitudPorIdToken_(idCliente, token);
+
+  if (!origen) return "No encontre la solicitud original para esa fila.";
+
+  var config = getConfigPorBase_(origen.baseName);
+  if (!config) return "No pude identificar la sucursal de origen.";
+
+  return regenerarLinkDesdeSolicitud_(origen, config, "RECHAZADO");
+}
+
+function regenerarLinkDesdeSolicitud_(rowData, config, motivo) {
+  var sheet = rowData.sheet;
+  var rowIndex = rowData.rowIndex;
+  var headerMap = getHeaderMapFlexible_(sheet);
+  var row = sheet.getRange(rowIndex, 1, 1, sheet.getLastColumn()).getValues()[0];
+
+  var nombre = getVal_(row, headerMap, ALIASES.NOMBRE);
+  var telefono = getVal_(row, headerMap, ALIASES.TELEFONO);
+  var dni = getVal_(row, headerMap, ALIASES.DNI);
+  var solicitud = getVal_(row, headerMap, ALIASES.SOLICITUD);
+  var tokenAnterior = getVal_(row, headerMap, ALIASES.TOKEN);
+
+  if (!nombre || !telefono || !dni) {
+    return "Faltan nombre, telefono o DNI en la solicitud original.";
+  }
+
+  var baseUrl = normalizarNetlifyBaseUrl();
+  var nuevoToken = "T" + Utilities.getUuid().slice(0, 8).toUpperCase() + Math.floor(1000 + Math.random() * 9000);
+  var idCliente = getVal_(row, headerMap, ALIASES.ID_CLIENTE) || construirIdCliente_(config.sucursal, solicitud, dni);
+  var dniHash = getVal_(row, headerMap, ALIASES.DNI_HASH) || generarHashDniParaCarga(dni);
+  var link = baseUrl + "?t=" + nuevoToken;
+  var waLink = crearLinkWhatsApp_(telefono, nombre, link);
+  var ahora = new Date();
+
+  setVal_(sheet, rowIndex, headerMap, ALIASES.ID_CLIENTE, idCliente);
+  setVal_(sheet, rowIndex, headerMap, ALIASES.TOKEN, nuevoToken);
+  setVal_(sheet, rowIndex, headerMap, ALIASES.DNI_HASH, dniHash);
+  setCeldaLinkEncuesta(sheet, rowIndex, getCol_(headerMap, ALIASES.LINK_ENCUESTA), link);
+  if (waLink) setCeldaLinkWhatsApp(sheet, rowIndex, getCol_(headerMap, ALIASES.ENVIAR_WPP), waLink, nombre);
+  setVal_(sheet, rowIndex, headerMap, ALIASES.ESTADO_ENCUESTA, "Link regenerado");
+  setVal_(sheet, rowIndex, headerMap, ALIASES.FECHA_ENVIO_LINK, ahora);
+
+  limpiarCamposRevalidacionEnFila_(sheet, rowIndex, headerMap);
+  setVal_(sheet, rowIndex, headerMap, "CANTIDAD_INTENTOS_WPP", 0);
+
+  var tmkRow = upsertFilaTMKDesdeSolicitud_(config, rowIndex);
+  if (tmkRow) {
+    var tmkSheet = getSheet(config.tmk);
+    var tmkMap = getHeaderMapFlexible_(tmkSheet);
+    limpiarCamposRevalidacionEnFila_(tmkSheet, tmkRow, tmkMap);
+    setVal_(tmkSheet, tmkRow, tmkMap, "DECISION_FINAL", "PENDIENTE");
+    setVal_(tmkSheet, tmkRow, tmkMap, "ESTADO_TMK", "Pendiente envio");
+    setVal_(tmkSheet, tmkRow, tmkMap, "PROXIMA_ACCION", "Enviar WPP");
+    setVal_(tmkSheet, tmkRow, tmkMap, "PRIORIDAD", "Alta");
+    setVal_(tmkSheet, tmkRow, tmkMap, "CANTIDAD_INTENTOS_WPP", 0);
+    setVal_(tmkSheet, tmkRow, tmkMap, "OBSERVACION_TMK", "Link regenerado por " + (motivo || "revalidacion") + ".");
+    aplicarFormatoFilaTmk_(tmkSheet, tmkRow);
+  }
+
+  try {
+    var cache = CacheService.getScriptCache();
+    if (tokenAnterior) cache.remove(getTokenCacheKey_(tokenAnterior));
+    cache.remove(getTokenCacheKey_(nuevoToken));
+  } catch (e) {
+    Logger.log("No se pudo limpiar cache de token: " + e);
+  }
+
+  actualizarVistasTMK_();
+  return "Link regenerado. Use el nuevo WhatsApp para reenviar la validacion.";
+}
+
+function limpiarCamposRevalidacionEnFila_(sheet, rowIndex, map) {
+  for (var i = 0; i < CAMPOS_RESETEO_REVALIDACION_.length; i++) {
+    var col = getCol_(map, CAMPOS_RESETEO_REVALIDACION_[i]);
+    if (col) sheet.getRange(rowIndex, col).clearContent();
+  }
+
+  setVal_(sheet, rowIndex, map, "DECISION_FINAL", "PENDIENTE");
+  setVal_(sheet, rowIndex, map, "MOTIVO_DECISION", "");
+  setVal_(sheet, rowIndex, map, "FECHA_DECISION", "");
+  setVal_(sheet, rowIndex, map, "RESULTADO_SCORING", "");
+  setVal_(sheet, rowIndex, map, "MOTIVO_RESULTADO", "");
+  setVal_(sheet, rowIndex, map, "REQUIERE_RECONTACTO", "");
+  setVal_(sheet, rowIndex, map, "AREA_A_REVISAR", "");
+}
