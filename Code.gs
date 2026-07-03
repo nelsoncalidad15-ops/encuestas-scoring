@@ -2981,3 +2981,84 @@ function limpiarCamposRevalidacionEnFila_(sheet, rowIndex, map) {
   setVal_(sheet, rowIndex, map, "REQUIERE_RECONTACTO", "");
   setVal_(sheet, rowIndex, map, "AREA_A_REVISAR", "");
 }
+
+/**************************************************************
+ * OVERRIDE FINAL - CONTADOR DE REVALIDACIONES VISIBLE
+ **************************************************************/
+
+function obtenerCantidadRevalidaciones_(texto) {
+  var raw = String(texto || "");
+  var match = raw.match(/Revalidado\s+(\d+)\s+ve/i);
+  if (match) return parseInt(match[1], 10) || 0;
+  return 0;
+}
+
+function construirTextoRevalidacion_(cantidad, motivo) {
+  var veces = cantidad === 1 ? "vez" : "veces";
+  return "Revalidado " + cantidad + " " + veces + ". Motivo: " + (motivo || "revalidacion") + ".";
+}
+
+function regenerarLinkDesdeSolicitud_(rowData, config, motivo) {
+  var sheet = rowData.sheet;
+  var rowIndex = rowData.rowIndex;
+  var headerMap = getHeaderMapFlexible_(sheet);
+  var row = sheet.getRange(rowIndex, 1, 1, sheet.getLastColumn()).getValues()[0];
+
+  var nombre = getVal_(row, headerMap, ALIASES.NOMBRE);
+  var telefono = getVal_(row, headerMap, ALIASES.TELEFONO);
+  var dni = getVal_(row, headerMap, ALIASES.DNI);
+  var solicitud = getVal_(row, headerMap, ALIASES.SOLICITUD);
+  var tokenAnterior = getVal_(row, headerMap, ALIASES.TOKEN);
+
+  if (!nombre || !telefono || !dni) {
+    return "Faltan nombre, telefono o DNI en la solicitud original.";
+  }
+
+  var baseUrl = normalizarNetlifyBaseUrl();
+  var nuevoToken = "T" + Utilities.getUuid().slice(0, 8).toUpperCase() + Math.floor(1000 + Math.random() * 9000);
+  var idCliente = getVal_(row, headerMap, ALIASES.ID_CLIENTE) || construirIdCliente_(config.sucursal, solicitud, dni);
+  var dniHash = getVal_(row, headerMap, ALIASES.DNI_HASH) || generarHashDniParaCarga(dni);
+  var link = baseUrl + "?t=" + nuevoToken;
+  var waLink = crearLinkWhatsApp_(telefono, nombre, link);
+  var ahora = new Date();
+
+  setVal_(sheet, rowIndex, headerMap, ALIASES.ID_CLIENTE, idCliente);
+  setVal_(sheet, rowIndex, headerMap, ALIASES.TOKEN, nuevoToken);
+  setVal_(sheet, rowIndex, headerMap, ALIASES.DNI_HASH, dniHash);
+  setCeldaLinkEncuesta(sheet, rowIndex, getCol_(headerMap, ALIASES.LINK_ENCUESTA), link);
+  if (waLink) setCeldaLinkWhatsApp(sheet, rowIndex, getCol_(headerMap, ALIASES.ENVIAR_WPP), waLink, nombre);
+  setVal_(sheet, rowIndex, headerMap, ALIASES.ESTADO_ENCUESTA, "Link regenerado");
+  setVal_(sheet, rowIndex, headerMap, ALIASES.FECHA_ENVIO_LINK, ahora);
+
+  limpiarCamposRevalidacionEnFila_(sheet, rowIndex, headerMap);
+  setVal_(sheet, rowIndex, headerMap, "CANTIDAD_INTENTOS_WPP", 0);
+
+  var tmkRow = upsertFilaTMKDesdeSolicitud_(config, rowIndex);
+  if (tmkRow) {
+    var tmkSheet = getSheet(config.tmk);
+    var tmkMap = getHeaderMapFlexible_(tmkSheet);
+    var filaTmkActual = tmkSheet.getRange(tmkRow, 1, 1, tmkSheet.getLastColumn()).getValues()[0];
+    var observacionAnterior = getVal_(filaTmkActual, tmkMap, "OBSERVACION_TMK");
+    var cantidadRevalidaciones = obtenerCantidadRevalidaciones_(observacionAnterior) + 1;
+
+    limpiarCamposRevalidacionEnFila_(tmkSheet, tmkRow, tmkMap);
+    setVal_(tmkSheet, tmkRow, tmkMap, "DECISION_FINAL", "PENDIENTE");
+    setVal_(tmkSheet, tmkRow, tmkMap, "ESTADO_TMK", "Pendiente envio");
+    setVal_(tmkSheet, tmkRow, tmkMap, "PROXIMA_ACCION", "Enviar WPP");
+    setVal_(tmkSheet, tmkRow, tmkMap, "PRIORIDAD", "Alta");
+    setVal_(tmkSheet, tmkRow, tmkMap, "CANTIDAD_INTENTOS_WPP", 0);
+    setVal_(tmkSheet, tmkRow, tmkMap, "OBSERVACION_TMK", construirTextoRevalidacion_(cantidadRevalidaciones, motivo));
+    aplicarFormatoFilaTmk_(tmkSheet, tmkRow);
+  }
+
+  try {
+    var cache = CacheService.getScriptCache();
+    if (tokenAnterior) cache.remove(getTokenCacheKey_(tokenAnterior));
+    cache.remove(getTokenCacheKey_(nuevoToken));
+  } catch (e) {
+    Logger.log("No se pudo limpiar cache de token: " + e);
+  }
+
+  actualizarVistasTMK_();
+  return "Link regenerado. Use el nuevo WhatsApp para reenviar la validacion.";
+}
