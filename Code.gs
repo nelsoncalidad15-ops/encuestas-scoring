@@ -3446,3 +3446,55 @@ function doPost(e) {
     return jsonResponse({ status: "ERROR", message: "Excepcion en servidor: " + err.toString() });
   }
 }
+
+/**************************************************************
+ * OVERRIDE FINAL - LIMPIAR VALIDACIONES VIEJAS EN TMK
+ **************************************************************/
+
+function limpiarValidacionesTMK_(sheet) {
+  var lastRow = Math.max(sheet.getMaxRows(), 2);
+  var lastCol = Math.max(sheet.getLastColumn(), HEADERS_TMK.length);
+  if (lastRow > 1 && lastCol > 0) {
+    sheet.getRange(2, 1, lastRow - 1, lastCol).clearDataValidations();
+  }
+}
+
+function formatearHojasTMK_() {
+  for (var i = 0; i < SOLICITUDES_CONFIG.length; i++) {
+    var sheet = getSheet(SOLICITUDES_CONFIG[i].tmk);
+    var lastRow = Math.max(sheet.getLastRow(), 1);
+    var lastCol = Math.max(sheet.getLastColumn(), HEADERS_TMK.length);
+    var map = getHeaderMapFlexible_(sheet);
+
+    limpiarValidacionesTMK_(sheet);
+
+    sheet.setFrozenRows(1);
+    sheet.getRange(1, 1, 1, lastCol).setFontWeight("bold").setFontColor("#ffffff").setBackground("#0f172a").setHorizontalAlignment("center");
+    if (lastRow > 1) sheet.getRange(2, 1, lastRow - 1, lastCol).setBackground(null).setFontColor("#111827").setVerticalAlignment("middle").setWrap(true);
+    setWidthIfExists_(sheet, map, "LINK_ENCUESTA", 120);
+    setWidthIfExists_(sheet, map, "ENVIAR WPP", 150);
+    setWidthIfExists_(sheet, map, "ABRIR_LLAMADA", 140);
+    setWidthIfExists_(sheet, map, "ESTADO_TMK", 130);
+    setWidthIfExists_(sheet, map, "ESTADO_ENCUESTA", 130);
+    setWidthIfExists_(sheet, map, "DECISION_FINAL", 120);
+    setWidthIfExists_(sheet, map, "MOTIVO_RESULTADO", 320);
+    setWidthIfExists_(sheet, map, "OBSERVACION_INTERNA", 280);
+    setWidthIfExists_(sheet, map, "OBSERVACION_TMK", 280);
+    pintarColumnaTMK_(sheet, map, "LINK_ENCUESTA", "#eff6ff");
+    pintarColumnaTMK_(sheet, map, "ENVIAR WPP", "#eff6ff");
+    pintarColumnaTMK_(sheet, map, "ABRIR_LLAMADA", "#ecfccb");
+    pintarColumnaTMK_(sheet, map, "ESTADO_TMK", "#f8fafc");
+    pintarColumnaTMK_(sheet, map, "ESTADO_ENCUESTA", "#f8fafc");
+    pintarColumnaTMK_(sheet, map, "DECISION_FINAL", "#f8fafc");
+    aplicarValidacionDecision_(sheet, map);
+    aplicarValidacionEstadoTMK_(sheet, map);
+    aplicarFormatoDecision_(sheet, map);
+    aplicarFormatoEstadoTMK_(sheet, map);
+    var tokenCol = getCol_(map, "TOKEN");
+    var hashCol = getCol_(map, "DNI_HASH");
+    var idCol = getCol_(map, "ID_CLIENTE");
+    if (tokenCol) sheet.hideColumns(tokenCol);
+    if (hashCol) sheet.hideColumns(hashCol);
+    if (idCol) sheet.hideColumns(idCol);
+  }
+}
