@@ -1,0 +1,10 @@
+node_modules
+netlify
+functions
+wrangler.toml
+.codex-temp
+operador-scoring
+dist
+temp_scoring_center_app_v2.js
+temp_scoring_center_callmode_app.js
+temp_scoring_center_local_app.js

@@ -1,0 +1,254 @@
+﻿<!doctype html>
+<html lang="es" class="h-full bg-[#f5f5f0]">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Validacion de Suscripcion - Autosol</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+              display: ['Playfair Display', 'serif'],
+              sansDisplay: ['Space Grotesk', 'sans-serif'],
+            },
+            colors: {
+              autosol: {
+                dark: '#2D2D2A',
+                primary: '#5A5A40',
+                light: '#F5F5F0',
+                accent: '#8E8E85',
+                border: '#E0E0D6',
+                progressBg: '#EBEBE0'
+              }
+            }
+          }
+        }
+      };
+    </script>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://unpkg.com/lucide@latest"></script>
+  </head>
+  <body class="min-h-full bg-autosol-light font-sans text-autosol-dark antialiased">
+    <header class="sticky top-0 z-40 border-b border-autosol-border bg-white/95 backdrop-blur">
+      <div class="mx-auto flex max-w-3xl items-center justify-between px-3 py-3 sm:px-4 sm:py-4">
+        <div class="flex items-center gap-3">
+          <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-autosol-dark to-autosol-primary text-base font-sansDisplay font-bold text-white sm:h-10 sm:w-10 sm:text-lg">A</div>
+          <div>
+            <h1 class="font-display text-lg font-semibold sm:text-xl">Autosol</h1>
+            <p class="text-[9px] font-bold uppercase tracking-[0.24em] text-autosol-accent sm:text-[10px] sm:tracking-[0.28em]">Plan de Ahorro</p>
+          </div>
+        </div>
+        <div class="rounded-full border border-autosol-border bg-autosol-light px-2.5 py-1 text-[11px] font-semibold text-autosol-primary sm:px-3 sm:text-xs">Seguro</div>
+      </div>
+    </header>
+
+    <main class="mx-auto w-full max-w-3xl px-3 py-3 pb-24 sm:px-4 sm:py-6 sm:pb-8">
+      <div id="error-toast" class="hidden mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+        <span id="error-toast-message"></span>
+      </div>
+
+      <section id="survey-card" class="overflow-hidden rounded-[1.6rem] border border-autosol-border bg-white shadow-sm sm:rounded-3xl">
+        <div id="progress-container" class="hidden border-b border-autosol-border bg-autosol-light/40 px-4 py-3 sm:px-6 sm:py-4">
+          <div class="mb-2 flex items-center justify-between">
+            <span id="step-title" class="text-[11px] font-semibold uppercase tracking-[0.24em] text-autosol-accent">Paso</span>
+            <span id="step-counter" class="rounded-full border border-autosol-border bg-white px-3 py-1 text-xs font-semibold text-autosol-accent">Paso 1 de 6</span>
+          </div>
+          <div class="h-1.5 overflow-hidden rounded-full bg-autosol-progressBg">
+            <div id="progress-bar" class="h-full rounded-full bg-autosol-primary transition-all duration-300"></div>
+          </div>
+        </div>
+
+        <div class="p-4 sm:p-6 md:p-8">
+          <div id="view-initial-check" class="py-12 text-center">
+            <div class="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-autosol-border border-t-autosol-primary"></div>
+            <p class="text-sm text-autosol-accent">Iniciando verificacion segura...</p>
+          </div>
+
+          <div id="view-token-error" class="hidden py-10 text-center">
+            <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-amber-50 text-amber-700">
+              <i data-lucide="link-2" class="h-7 w-7"></i>
+            </div>
+            <h2 id="token-error-title" class="mb-2 font-display text-2xl font-semibold">Enlace incompleto</h2>
+            <p id="token-error-desc" class="mx-auto mb-6 max-w-md text-sm text-autosol-accent">El enlace de validacion no contiene un identificador unico de cliente.</p>
+            <div class="mx-auto max-w-md rounded-2xl border border-autosol-border bg-autosol-light/50 p-5 text-left text-sm text-autosol-accent">
+              Solicite a su asesor o al equipo de atencion al cliente un nuevo acceso personalizado.
+            </div>
+          </div>
+
+          <div id="view-step-validation" class="hidden">
+            <div class="mb-6 rounded-2xl border border-autosol-border bg-[linear-gradient(135deg,#faf9f4_0%,#f1f0e8_100%)] p-4 sm:p-5">
+              <p class="text-[10px] font-bold uppercase tracking-[0.28em] text-autosol-primary">Verificacion oficial</p>
+              <h2 class="mt-2 font-display text-[1.75rem] font-semibold leading-tight sm:text-2xl">Validacion de identidad</h2>
+              <p class="mt-2 text-sm leading-relaxed text-autosol-accent">Este formulario permite confirmar la informacion de su suscripcion. El proceso es breve, seguro y solo puede completarse desde su enlace personalizado.</p>
+            </div>
+            <form id="form-validation" class="space-y-4" onsubmit="validateDni(event)">
+              <div>
+                <label for="input-dni" class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.18em] text-autosol-accent">Documento de identidad</label>
+                <input id="input-dni" type="text" inputmode="numeric" pattern="[0-9]{7,8}" required placeholder="Solo numeros" class="block w-full rounded-xl border border-autosol-border bg-autosol-light px-4 py-3 text-sm text-autosol-dark outline-none transition focus:border-autosol-primary focus:ring-2 focus:ring-autosol-primary/15" />
+                <p class="mt-1.5 text-[11px] text-autosol-accent">Su DNI se procesa de forma protegida.</p>
+              </div>
+              <button id="btn-validate-submit" type="submit" class="w-full rounded-xl bg-autosol-primary px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#4c4c37]">Validar y continuar</button>
+            </form>
+          </div>
+
+          <div id="view-loading-overlay" class="hidden py-12 text-center">
+            <div class="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-autosol-border border-t-autosol-primary"></div>
+            <p id="loading-overlay-text" class="text-sm text-autosol-accent">Procesando...</p>
+          </div>
+
+          <div id="survey-questions-container" class="hidden">
+            <div id="step-panel-2" class="hidden space-y-5">
+              <div class="rounded-2xl border border-autosol-border bg-autosol-light/50 p-4 text-sm">
+                <div class="grid gap-2 md:grid-cols-2">
+                  <div><span class="font-semibold text-autosol-accent">Cliente:</span> <span id="client-badge-name">-</span></div>
+                  <div><span class="font-semibold text-autosol-accent">Modelo:</span> <span id="client-badge-model">-</span></div>
+                </div>
+              </div>
+              <div class="space-y-4">
+                <div class="space-y-2">
+                  <p id="q1-text" class="text-sm font-semibold">1. Le informamos que accedio al plan exclusivo del modelo informado. Lo sabia?</p>
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <label class="chip-option-small"><input type="radio" name="q1" value="Si" required /><span>Si</span></label>
+                    <label class="chip-option-small"><input type="radio" name="q1" value="No" /><span>No</span></label>
+                  </div>
+                </div>
+                <div class="space-y-2 border-t border-autosol-border pt-3">
+                  <p id="q2-text" class="text-sm font-semibold">2. Le informaron que puede licitar con ese porcentaje a partir de la cuota 2?</p>
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <label class="chip-option-small"><input type="radio" name="q2" value="Si" required /><span>Si</span></label>
+                    <label class="chip-option-small"><input type="radio" name="q2" value="No" /><span>No</span></label>
+                  </div>
+                </div>
+                <div id="q3-block" class="space-y-2 border-t border-autosol-border pt-3">
+                  <p id="q3-text" class="text-sm font-semibold">3. Le informaron que tiene adjudicacion asegurada segun el plan?</p>
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <label class="chip-option-small"><input type="radio" name="q3" value="Si" required /><span>Si</span></label>
+                    <label class="chip-option-small"><input type="radio" name="q3" value="No" /><span>No</span></label>
+                  </div>
+                </div>
+                <div class="space-y-2 border-t border-autosol-border pt-3">
+                  <p id="q4-text" class="text-sm font-semibold">4. El vendedor le informo el monto estimado de la cuota 2?</p>
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <label class="chip-option-small"><input type="radio" name="q4" value="Si" required /><span>Si</span></label>
+                    <label class="chip-option-small"><input type="radio" name="q4" value="No" /><span>No</span></label>
+                  </div>
+                </div>
+                <div class="space-y-1.5 border-t border-autosol-border pt-3">
+                  <label id="q4a-label" for="input-q4a" class="block text-sm font-semibold">4.a Cuanto es aproximadamente?</label>
+                  <input id="input-q4a" type="text" class="block w-full rounded-xl border border-autosol-border bg-autosol-light/40 px-3 py-2.5 text-sm outline-none focus:border-autosol-primary focus:ring-2 focus:ring-autosol-primary/15" placeholder="Ej: $ 185000" />
+                </div>
+              </div>
+            </div>
+
+            <div id="step-panel-3" class="hidden space-y-5">
+              <div class="space-y-4">
+                <div class="space-y-1.5">
+                  <label id="q5-label" for="input-q5" class="block text-sm font-semibold">5. Cuanto pago en la primera cuota? *</label>
+                  <input id="input-q5" type="text" required class="block w-full rounded-xl border border-autosol-border bg-autosol-light/40 px-3 py-2.5 text-sm outline-none focus:border-autosol-primary focus:ring-2 focus:ring-autosol-primary/15" placeholder="Ej: $ 130000" />
+                </div>
+                <div class="space-y-2 border-t border-autosol-border pt-3">
+                  <p id="q5a-text" class="text-sm font-semibold">5.a Acepto adhesion al debito automatico?</p>
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <label class="chip-option-small"><input type="radio" name="q5a" value="Si" required /><span>Si</span></label>
+                    <label class="chip-option-small"><input type="radio" name="q5a" value="No" /><span>No</span></label>
+                  </div>
+                </div>
+                <div class="rounded-2xl border border-autosol-border bg-autosol-light/30 p-4 text-sm text-autosol-accent">
+                  <p class="text-xs font-semibold uppercase tracking-[0.24em] text-autosol-primary">Informativo</p>
+                  <p class="mt-2">La permanencia minima del debito automatico es hasta cuota 6.</p>
+                </div>
+                <div class="space-y-1.5 border-t border-autosol-border pt-3">
+                  <label id="q5b-label" for="input-q5b" class="block text-sm font-semibold">5.b Cuando pago la primera cuota estimativamente? *</label>
+                  <input id="input-q5b" type="date" required class="block w-full rounded-xl border border-autosol-border bg-autosol-light/40 px-3 py-2.5 text-sm outline-none focus:border-autosol-primary focus:ring-2 focus:ring-autosol-primary/15" />
+                </div>
+              </div>
+            </div>
+
+            <div id="step-panel-4" class="hidden space-y-5">
+              <div class="space-y-4">
+                <div class="space-y-1.5">
+                  <label id="q6-label" for="input-q6" class="block text-sm font-semibold">6. Quien es su vendedor? *</label>
+                  <input id="input-q6" type="text" required class="block w-full rounded-xl border border-autosol-border bg-autosol-light/40 px-3 py-2.5 text-sm outline-none focus:border-autosol-primary focus:ring-2 focus:ring-autosol-primary/15" placeholder="Nombre del vendedor" />
+                </div>
+                <div class="space-y-2 border-t border-autosol-border pt-3">
+                  <p id="q7-text" class="text-sm font-semibold">7. Estuvo pagando algun otro Plan de Ahorro de un 0 km recientemente?</p>
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <label class="chip-option-small"><input type="radio" name="q7" value="Si" required /><span>Si</span></label>
+                    <label class="chip-option-small"><input type="radio" name="q7" value="No" /><span>No</span></label>
+                  </div>
+                </div>
+                <div id="other-plan-conditional" class="hidden space-y-1.5 rounded-xl border border-autosol-border bg-autosol-light/30 p-3.5">
+                  <label id="q7a-label" for="input-q7a" class="text-xs font-semibold uppercase tracking-[0.18em] text-autosol-accent">Si respondio Si, indique marca y hasta que mes pago *</label>
+                  <input id="input-q7a" type="text" class="block w-full rounded-xl border border-autosol-border bg-white px-3 py-2 text-sm outline-none focus:border-autosol-primary focus:ring-2 focus:ring-autosol-primary/15" placeholder="Ej: Fiat hasta marzo 2026" />
+                </div>
+                <div class="space-y-2 border-t border-autosol-border pt-3">
+                  <p id="q8-text" class="text-sm font-semibold">8. Como conocio la propuesta?</p>
+                  <div class="grid gap-2 md:grid-cols-2">
+                    <label class="chip-option"><input type="radio" name="q8" value="Redes sociales" required /><span>Redes sociales</span></label>
+                    <label class="chip-option"><input type="radio" name="q8" value="Salon" /><span>Salon</span></label>
+                    <label class="chip-option"><input type="radio" name="q8" value="TV" /><span>TV</span></label>
+                    <label class="chip-option"><input type="radio" name="q8" value="Radio" /><span>Radio</span></label>
+                    <label class="chip-option"><input type="radio" name="q8" value="Referido" /><span>Referido</span></label>
+                    <label class="chip-option"><input type="radio" name="q8" value="WhatsApp" /><span>WhatsApp</span></label>
+                    <label class="chip-option md:col-span-2"><input type="radio" name="q8" value="Otro" /><span>Otro</span></label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div id="step-panel-5" class="hidden space-y-5">
+              <div class="space-y-4">
+                <div class="space-y-2">
+                  <p id="q9-text" class="text-sm font-semibold">9. Necesita que un asesor vuelva a contactarlo?</p>
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <label class="chip-option-small"><input type="radio" name="q9" value="Si" required /><span>Si</span></label>
+                    <label class="chip-option-small"><input type="radio" name="q9" value="No" /><span>No</span></label>
+                  </div>
+                </div>
+                <div class="space-y-1.5 border-t border-autosol-border pt-3">
+                  <label id="q10-label" for="input-q10" class="block text-sm font-semibold">Observaciones</label>
+                  <textarea id="input-q10" rows="4" class="block w-full rounded-xl border border-autosol-border bg-autosol-light/40 px-3 py-2.5 text-sm outline-none focus:border-autosol-primary focus:ring-2 focus:ring-autosol-primary/15" placeholder="Escriba aqui cualquier aclaracion importante"></textarea>
+                  <p id="q10-required-helper" class="hidden text-[11px] text-amber-700">Este campo es obligatorio si solicita recontacto.</p>
+                </div>
+              </div>
+            </div>
+
+            <div id="step-actions" class="mt-8 flex items-center justify-between gap-3 border-t border-autosol-border bg-white pt-5">
+              <button id="btn-nav-prev" type="button" onclick="navigateStep(-1)" class="rounded-xl border border-autosol-border px-4 py-3 text-sm font-semibold text-autosol-dark transition hover:bg-autosol-light">Atras</button>
+              <button id="btn-nav-next" type="button" onclick="navigateStep(1)" class="rounded-xl bg-autosol-primary px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#4c4c37]">
+                <span id="btn-next-text">Continuar</span>
+              </button>
+            </div>
+          </div>
+
+          <div id="view-success" class="hidden py-10 text-center">
+            <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 text-emerald-700">
+              <i data-lucide="badge-check" class="h-8 w-8"></i>
+            </div>
+            <h2 class="mb-2 font-display text-2xl font-semibold">Validacion completada</h2>
+            <p class="mx-auto mb-6 max-w-lg text-sm leading-relaxed text-autosol-accent">Su validacion fue registrada correctamente en nuestro sistema central. Agradecemos su tiempo para ayudarnos a mantener la transparencia y seguridad de su Plan de Ahorro Autosol.</p>
+            <ul class="mx-auto max-w-md space-y-2 rounded-2xl border border-autosol-border bg-autosol-light/40 p-4 text-left text-sm text-autosol-accent">
+              <li>Un asesor de Autosol auditara sus respuestas.</li>
+              <li>Si corresponde, se revisara internamente la gestion comercial.</li>
+              <li>Si solicito contacto, un asesor lo llamara a la brevedad.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <footer class="px-3 py-5 text-center text-[11px] text-autosol-accent">
+        Esta es una plataforma interna de validacion. La informacion enviada se utiliza unicamente para verificar los datos de la suscripcion y dar seguimiento comercial.
+      </footer>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
+
+
