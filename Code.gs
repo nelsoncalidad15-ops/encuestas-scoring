@@ -2073,6 +2073,7 @@ function analizarPlanAuto_(modeloRaw) {
   var licita = "";
   var planAuto = "";
   var cta = "-";
+  var modeloBase = modelo;
 
   if (match) {
     financia = match[1] + "%";
@@ -2084,15 +2085,29 @@ function analizarPlanAuto_(modeloRaw) {
     planAuto = "100%";
   }
 
-  if (/AMAROK/.test(modelo)) cta = "CTA 2";
-  else if (/NIVUS|T-CROSS|TCROSS|TERA/.test(modelo)) cta = "CTA 8/12/24";
-  else if (/VIRTUS/.test(modelo)) cta = "-";
+  if (/AMAROK/.test(modelo)) {
+    modeloBase = "AMAROK";
+    cta = "cuota 2";
+  } else if (/NIVUS/.test(modelo)) {
+    modeloBase = "NIVUS";
+    cta = "cuota 8/12/24";
+  } else if (/T-CROSS|TCROSS/.test(modelo)) {
+    modeloBase = "T-CROSS";
+    cta = "cuota 8/12/24";
+  } else if (/TERA/.test(modelo)) {
+    modeloBase = "TERA";
+    cta = "cuota 8/12/24";
+  } else if (/VIRTUS/.test(modelo)) {
+    modeloBase = "VIRTUS";
+    cta = "-";
+  }
 
   return {
     planAuto: planAuto || "-",
     financia: financia || "-",
     licita: licita || "-",
-    cta: cta
+    cta: cta,
+    modeloBase: modeloBase || (modeloRaw || "su modelo")
   };
 }
 
@@ -2163,9 +2178,13 @@ function personalizarTextoPregunta_(texto, clienteSeguro) {
   var plan = analizarPlanAuto_(cliente.modelo);
   return String(texto || "")
     .replace(/\{\{MODELO\}\}/g, cliente.modelo || "su modelo")
+    .replace(/\{\{MODELO_BASE\}\}/g, plan.modeloBase || cliente.modelo || "su modelo")
     .replace(/\{\{FINANCIA\}\}/g, plan.financia || "un porcentaje")
+    .replace(/\{\{PORCENTAJE_FINANCIADO\}\}/g, plan.financia || "un porcentaje")
     .replace(/\{\{LICITA\}\}/g, plan.licita || "ese porcentaje")
+    .replace(/\{\{PORCENTAJE_LICITACION\}\}/g, plan.licita || "ese porcentaje")
     .replace(/\{\{CTA\}\}/g, plan.cta || "-")
+    .replace(/\{\{CUOTAS_ADJUDICACION\}\}/g, plan.cta || "-")
     .replace(/\{\{CUOTA2\}\}/g, cliente.montoCuota2 || "");
 }
 
@@ -2402,4 +2421,401 @@ function actualizarCatalogoPreguntas() {
   sheet.setColumnWidth(9, 150);
   sheet.setColumnWidth(10, 70);
   sheet.getRange(2, 1, rows.length, headers.length).setWrap(true).setVerticalAlignment("middle");
+}
+
+/**************************************************************
+ * OVERRIDE DE RENDIMIENTO - GENERAR RAPIDO POR FILA
+ **************************************************************/
+
+function onEdit(e) {
+  try {
+    if (!e || !e.range) return;
+    var sheet = e.range.getSheet();
+    var config = getConfigPorBase_(sheet.getName());
+    if (!config) return;
+    if (e.range.getRow() < 2 || e.range.getColumn() !== COL_GENERAR) return;
+    if (String(e.value || "").toUpperCase() !== "TRUE") return;
+    procesarFilaSolicitudRapida_(sheet, e.range.getRow(), config);
+    e.range.setValue(false);
+  } catch (err) {
+    Logger.log("onEdit rapido error: " + err);
+  }
+}
+
+function procesarFilaSolicitud_(sheet, rowIndex, config) {
+  return procesarFilaSolicitudRapida_(sheet, rowIndex, config);
+}
+
+function procesarFilaSolicitudRapida_(sheet, rowIndex, config) {
+  var headerMap = getHeaderMapFlexible_(sheet);
+  var row = sheet.getRange(rowIndex, 1, 1, sheet.getLastColumn()).getValues()[0];
+  var nombre = getVal_(row, headerMap, ALIASES.NOMBRE);
+  var telefono = getVal_(row, headerMap, ALIASES.TELEFONO);
+  var dni = getVal_(row, headerMap, ALIASES.DNI);
+  var solicitud = getVal_(row, headerMap, ALIASES.SOLICITUD);
+  if (!nombre || !telefono || !dni) return false;
+
+  var tokenActual = getVal_(row, headerMap, ALIASES.TOKEN);
+  var linkActual = sheet.getRange(rowIndex, getCol_(headerMap, ALIASES.LINK_ENCUESTA)).getRichTextValue();
+  if (tokenActual && linkActual && linkActual.getLinkUrl()) {
+    upsertFilaTMKDesdeSolicitud_(config, rowIndex);
+    return true;
+  }
+
+  var netlifyBaseUrl = normalizarNetlifyBaseUrl();
+  var token = tokenActual || ("T" + Utilities.getUuid().slice(0, 8).toUpperCase() + Math.floor(1000 + Math.random() * 9000));
+  var idCliente = getVal_(row, headerMap, ALIASES.ID_CLIENTE) || construirIdCliente_(config.sucursal, solicitud, dni);
+  var dniHash = getVal_(row, headerMap, ALIASES.DNI_HASH) || generarHashDniParaCarga(dni);
+  var link = netlifyBaseUrl + "?t=" + token;
+  var waLink = crearLinkWhatsApp_(telefono, nombre, link);
+  var now = new Date();
+
+  setVal_(sheet, rowIndex, headerMap, ALIASES.ID_CLIENTE, idCliente);
+  setVal_(sheet, rowIndex, headerMap, ALIASES.TOKEN, token);
+  setVal_(sheet, rowIndex, headerMap, ALIASES.DNI_HASH, dniHash);
+  setCeldaLinkEncuesta(sheet, rowIndex, getCol_(headerMap, ALIASES.LINK_ENCUESTA), link);
+  if (waLink) setCeldaLinkWhatsApp(sheet, rowIndex, getCol_(headerMap, ALIASES.ENVIAR_WPP), waLink, nombre);
+  setVal_(sheet, rowIndex, headerMap, ALIASES.ESTADO_ENCUESTA, "Link generado");
+  setVal_(sheet, rowIndex, headerMap, ALIASES.FECHA_ENVIO_LINK, now);
+
+  aplicarFormatoFilaSolicitudGenerada_(sheet, rowIndex, headerMap);
+  upsertFilaTMKDesdeSolicitud_(config, rowIndex);
+  return true;
+}
+
+function upsertFilaTMKDesdeSolicitud_(config, baseRowIndex) {
+  var baseSheet = getSheet(config.base);
+  var tmkSheet = getSheet(config.tmk);
+  var baseMap = getHeaderMapFlexible_(baseSheet);
+  var tmkMap = getHeaderMapFlexible_(tmkSheet);
+  var baseRow = baseSheet.getRange(baseRowIndex, 1, 1, baseSheet.getLastColumn()).getValues()[0];
+  var idCliente = getVal_(baseRow, baseMap, ALIASES.ID_CLIENTE);
+  var token = getVal_(baseRow, baseMap, ALIASES.TOKEN);
+  if (!idCliente && !token) return 0;
+
+  var targetRow = buscarFilaTMKPorIdToken_(tmkSheet, tmkMap, idCliente, token);
+  var existing = {};
+  if (targetRow) {
+    var current = tmkSheet.getRange(targetRow, 1, 1, tmkSheet.getLastColumn()).getValues()[0];
+    for (var i = 0; i < HEADERS_TMK.length; i++) {
+      var col = getCol_(tmkMap, HEADERS_TMK[i]);
+      existing[HEADERS_TMK[i]] = col ? current[col - 1] : "";
+    }
+  } else {
+    targetRow = Math.max(tmkSheet.getLastRow() + 1, 2);
+  }
+
+  var newRow = construirFilaTMK_(config, baseRow, baseMap, existing);
+  tmkSheet.getRange(targetRow, 1, 1, HEADERS_TMK.length).setValues([newRow]);
+  restaurarRichTextFilaTMKDesdeSolicitud_(baseSheet, baseMap, baseRowIndex, tmkSheet, targetRow);
+  aplicarFormatoFilaTmk_(tmkSheet, targetRow);
+  return targetRow;
+}
+
+function restaurarRichTextFilaTMKDesdeSolicitud_(baseSheet, baseMap, baseRow, tmkSheet, tmkRow) {
+  var tmkMap = getHeaderMapFlexible_(tmkSheet);
+  var colEncuestaTMK = getCol_(tmkMap, "LINK_ENCUESTA");
+  var colWppTMK = getCol_(tmkMap, "ENVIAR WPP");
+  var colEncuestaBase = getCol_(baseMap, ALIASES.LINK_ENCUESTA);
+  var colWppBase = getCol_(baseMap, ALIASES.ENVIAR_WPP);
+
+  if (colEncuestaBase && colEncuestaTMK) {
+    var rtEncuesta = baseSheet.getRange(baseRow, colEncuestaBase).getRichTextValue();
+    if (rtEncuesta && rtEncuesta.getLinkUrl()) tmkSheet.getRange(tmkRow, colEncuestaTMK).setRichTextValue(rtEncuesta);
+  }
+  if (colWppBase && colWppTMK) {
+    var rtWpp = baseSheet.getRange(baseRow, colWppBase).getRichTextValue();
+    if (rtWpp && rtWpp.getLinkUrl()) tmkSheet.getRange(tmkRow, colWppTMK).setRichTextValue(rtWpp);
+  }
+}
+
+function aplicarFormatoFilaSolicitudGenerada_(sheet, rowIndex, headerMap) {
+  var colGenerar = COL_GENERAR;
+  var colInicio = COL_INICIO_LINKS;
+  sheet.getRange(rowIndex, colGenerar, 1, 1).setBackground("#f0fdf4");
+  sheet.getRange(rowIndex, colInicio, 1, HEADERS_LINKS_SOLICITUDES.length).setBackground("#eff6ff");
+  var colEstado = getCol_(headerMap, ALIASES.ESTADO_ENCUESTA);
+  if (colEstado) sheet.getRange(rowIndex, colEstado).setBackground("#ecfeff");
+}
+
+function aplicarFormatoFilaTmk_(sheet, rowIndex) {
+  var map = getHeaderMapFlexible_(sheet);
+  sheet.getRange(rowIndex, 1, 1, Math.max(sheet.getLastColumn(), HEADERS_TMK.length))
+    .setBackground(null)
+    .setFontColor("#111827")
+    .setVerticalAlignment("middle")
+    .setWrap(true);
+  pintarCeldaSiExiste_(sheet, rowIndex, map, "LINK_ENCUESTA", "#eff6ff");
+  pintarCeldaSiExiste_(sheet, rowIndex, map, "ENVIAR WPP", "#eff6ff");
+  pintarCeldaSiExiste_(sheet, rowIndex, map, "ESTADO_TMK", "#f8fafc");
+  pintarCeldaSiExiste_(sheet, rowIndex, map, "ESTADO_ENCUESTA", "#f8fafc");
+  pintarCeldaSiExiste_(sheet, rowIndex, map, "DECISION_FINAL", "#f8fafc");
+}
+
+function pintarCeldaSiExiste_(sheet, rowIndex, map, header, color) {
+  var col = getCol_(map, header);
+  if (col) sheet.getRange(rowIndex, col).setBackground(color);
+}
+
+/**************************************************************
+ * OVERRIDE DE CABECERAS - PRIORIZAR LA PRIMERA COLUMNA VALIDA
+ **************************************************************/
+
+function getHeaderMapFlexible_(sheet) {
+  var lastCol = sheet.getLastColumn();
+  var headers = lastCol > 0 ? sheet.getRange(1, 1, 1, lastCol).getValues()[0] : [];
+  var exact = {};
+  var normalized = {};
+  for (var i = 0; i < headers.length; i++) {
+    if (!headers[i]) continue;
+    var raw = headers[i].toString().trim();
+    var norm = normalizarHeader_(raw);
+    if (!exact[raw]) exact[raw] = i + 1;
+    if (!normalized[norm]) normalized[norm] = i + 1;
+  }
+  return { exact: exact, normalized: normalized, headers: headers };
+}
+
+/**************************************************************
+ * OVERRIDE FINAL - BACKEND LIVIANO PARA WEB
+ **************************************************************/
+
+function buscarFilaPorToken(token) {
+  if (!token) return null;
+
+  for (var c = 0; c < SOLICITUDES_CONFIG.length; c++) {
+    var config = SOLICITUDES_CONFIG[c];
+    var sheet = getSheet(config.base);
+    if (sheet.getLastRow() < 2) continue;
+
+    var headerMap = getHeaderMapFlexible_(sheet);
+    var tokenCol = getCol_(headerMap, ALIASES.TOKEN);
+    if (!tokenCol) continue;
+
+    var tokenValues = sheet.getRange(2, tokenCol, sheet.getLastRow() - 1, 1).getValues();
+    for (var i = 0; i < tokenValues.length; i++) {
+      var rowToken = tokenValues[i][0];
+      if (rowToken && rowToken.toString().trim() === token.toString().trim()) {
+        var rowIndex = i + 2;
+        var rowValues = sheet.getRange(rowIndex, 1, 1, sheet.getLastColumn()).getValues()[0];
+        return {
+          rowIndex: rowIndex,
+          values: rowValues,
+          headerMap: headerMap,
+          sheet: sheet,
+          baseName: config.base,
+          tmkName: config.tmk,
+          sucursal: config.sucursal
+        };
+      }
+    }
+  }
+  return null;
+}
+
+function doPost(e) {
+  try {
+    var payload = JSON.parse((e && e.postData && e.postData.contents) || "{}");
+    var action = payload.action;
+    var backendSecret = payload.backendSecret;
+
+    var correctSecret = PropertiesService.getScriptProperties().getProperty("BACKEND_SECRET");
+    if (!correctSecret || backendSecret !== correctSecret) {
+      return jsonResponse({ status: "ERROR", message: "No autorizado. Credenciales de backend incorrectas." });
+    }
+
+    if (action === "validarCliente") {
+      return validarCliente(payload.token, payload.dni);
+    }
+
+    if (action === "guardarEncuesta") {
+      ensureSheets();
+      ensureHeaders();
+      return guardarEncuesta(payload.token, payload.dni, payload.respuestas);
+    }
+
+    return jsonResponse({ status: "ERROR", message: "Accion no reconocida." });
+  } catch (err) {
+    registrarLog("SYSTEM", "", "ERROR", err.toString(), "Apps Script - doPost liviano");
+    return jsonResponse({ status: "ERROR", message: "Excepcion en servidor: " + err.toString() });
+  }
+}
+
+/**************************************************************
+ * OVERRIDE FINAL - GUARDADO WEB RAPIDO
+ **************************************************************/
+
+function guardarRespuestaScoring(cliente, respuestas, scoring) {
+  var sheet = getSheet("Respuestas_Scoring");
+  if (sheet.getLastRow() === 0 || sheet.getLastColumn() === 0) {
+    sheet.getRange(1, 1, 1, HEADERS_RESPUESTAS_SCORING.length).setValues([HEADERS_RESPUESTAS_SCORING]);
+  }
+  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  var idRespuesta = "R-" + Utilities.getUuid().slice(0, 8).toUpperCase();
+  var fechaActual = new Date();
+  var newRow = [];
+
+  for (var i = 0; i < headers.length; i++) {
+    var h = headers[i];
+    var val = "";
+    switch (h) {
+      case "ID_RESPUESTA": val = idRespuesta; break;
+      case "ID_CLIENTE": val = cliente.idCliente; break;
+      case "TOKEN_HASH": val = cliente.token; break;
+      case "DNI_HASH": val = cliente.dniHash; break;
+      case "Fecha respuesta": val = fechaActual; break;
+      case "Nombre y Apellido": val = cliente.nombre; break;
+      case "Modelo suscripto": val = cliente.modelo; break;
+      case "Q1_Conocia_plan_exclusivo": val = respuestas.q1; break;
+      case "Q2_Informaron_licitacion_cuota_2": val = respuestas.q2; break;
+      case "Q3_Informaron_adjudicacion_asegurada": val = respuestas.q3; break;
+      case "Q4_Informaron_monto_cuota_2": val = respuestas.q4; break;
+      case "Q4A_Monto_estimado_cuota_2": val = respuestas.q4a || ""; break;
+      case "Q5_Monto_primera_cuota": val = respuestas.q5; break;
+      case "Q5A_Acepto_debito_automatico": val = respuestas.q5a; break;
+      case "Q5B_Fecha_pago_primera_cuota": val = respuestas.q5b; break;
+      case "Q6_Quien_es_vendedor": val = respuestas.q6; break;
+      case "Q7_Tuvo_otro_plan_reciente": val = respuestas.q7; break;
+      case "Q7A_Detalle_otro_plan": val = respuestas.q7a || ""; break;
+      case "Q8_Como_conocio_propuesta": val = respuestas.q8; break;
+      case "Q9_Necesita_recontacto": val = respuestas.q9; break;
+      case "Q10_Observaciones_cliente": val = respuestas.q10 || ""; break;
+      case "RESULTADO_SCORING": val = scoring.resultado; break;
+      case "MOTIVO_RESULTADO": val = scoring.motivo; break;
+      case "REQUIERE_RECONTACTO": val = scoring.requiereRecontacto; break;
+      case "AREA_A_REVISAR": val = scoring.area; break;
+      case "OBSERVACION_INTERNA": val = scoring.observacion; break;
+    }
+    newRow.push(val);
+  }
+
+  sheet.appendRow(newRow);
+}
+
+function volcarRespuestaEnTMK_(rowData, respuestas, scoring, canal) {
+  var tmkSheet = getSheet(rowData.tmkName);
+  var tmkMap = getHeaderMapFlexible_(tmkSheet);
+  var targetRow = buscarFilaTMKPorIdToken_(tmkSheet, tmkMap,
+    getVal_(rowData.values, rowData.headerMap, ALIASES.ID_CLIENTE),
+    getVal_(rowData.values, rowData.headerMap, ALIASES.TOKEN)
+  );
+
+  if (!targetRow) {
+    var config = getConfigPorBase_(rowData.baseName);
+    if (config) {
+      targetRow = upsertFilaTMKDesdeSolicitud_(config, rowData.rowIndex);
+      tmkMap = getHeaderMapFlexible_(tmkSheet);
+    }
+  }
+
+  if (!targetRow) return;
+  escribirRespuestasEnFilaTMK_(tmkSheet, targetRow, tmkMap, respuestas, scoring, canal);
+  aplicarFormatoFilaTmk_(tmkSheet, targetRow);
+}
+
+function guardarEncuesta(token, dni, respuestas) {
+  var dniHashInput = generarHash(dni);
+  var rowData = buscarFilaPorToken(token);
+  if (!rowData) {
+    registrarLog(token, dniHashInput, "TOKEN_INVALIDO", "Token inexistente al intentar guardar", "guardarEncuesta");
+    return jsonResponse({ status: "TOKEN_INVALIDO" });
+  }
+
+  var rowValues = rowData.values;
+  var headerMap = rowData.headerMap;
+  var dniHashSheet = getVal_(rowValues, headerMap, ALIASES.DNI_HASH);
+  var estadoEncuesta = getVal_(rowValues, headerMap, ALIASES.ESTADO_ENCUESTA);
+  if (estadoEncuesta === "Respondido") {
+    registrarLog(token, dniHashInput, "YA_RESPONDIO", "Encuesta duplicada rechazada al guardar", "guardarEncuesta");
+    return jsonResponse({ status: "YA_RESPONDIO" });
+  }
+
+  var dniHashSheetStr = dniHashSheet ? dniHashSheet.toString().trim() : "";
+  var esValido = (dniHashInput === dniHashSheetStr) || (normalizarDni(dni) === normalizarDni(dniHashSheetStr));
+  if (!esValido) {
+    registrarLog(token, dniHashInput, "DNI_INVALIDO", "DNI incorrecto al intentar guardar", "guardarEncuesta");
+    return jsonResponse({ status: "DNI_INVALIDO" });
+  }
+
+  var scoring = calcularScoring(respuestas);
+  var clienteInfo = construirClienteInfoDesdeRowData_(rowData);
+  guardarRespuestaScoring(clienteInfo, respuestas, scoring);
+  actualizarSolicitudConScoring_(rowData, scoring, "WEB");
+  volcarRespuestaEnTMK_(rowData, respuestas, scoring, "WEB");
+  registrarLog(token, dniHashInput, "OK", "Encuesta procesada: " + scoring.resultado, "guardarEncuesta");
+  return jsonResponse({ status: "OK", scoringResult: scoring.resultado });
+}
+
+/**************************************************************
+ * OVERRIDE FINAL - CACHE VALIDACION + UX MAS AGIL
+ **************************************************************/
+
+function getTokenCacheKey_(token) {
+  return "token_row::" + String(token || "").trim();
+}
+
+function buscarFilaPorToken(token) {
+  if (!token) return null;
+
+  var cache = CacheService.getScriptCache();
+  var cacheKey = getTokenCacheKey_(token);
+  var cached = cache.get(cacheKey);
+  if (cached) {
+    try {
+      var meta = JSON.parse(cached);
+      var config = getConfigPorBase_(meta.baseName);
+      if (config) {
+        var sheet = getSheet(config.base);
+        if (meta.rowIndex >= 2 && meta.rowIndex <= sheet.getLastRow()) {
+          var headerMap = getHeaderMapFlexible_(sheet);
+          var rowValues = sheet.getRange(meta.rowIndex, 1, 1, sheet.getLastColumn()).getValues()[0];
+          var tokenCol = getCol_(headerMap, ALIASES.TOKEN);
+          var rowToken = tokenCol ? rowValues[tokenCol - 1] : "";
+          if (rowToken && rowToken.toString().trim() === token.toString().trim()) {
+            return {
+              rowIndex: meta.rowIndex,
+              values: rowValues,
+              headerMap: headerMap,
+              sheet: sheet,
+              baseName: config.base,
+              tmkName: config.tmk,
+              sucursal: config.sucursal
+            };
+          }
+        }
+      }
+    } catch (e) {
+      Logger.log("Cache token invalido: " + e);
+    }
+  }
+
+  for (var c = 0; c < SOLICITUDES_CONFIG.length; c++) {
+    var configSearch = SOLICITUDES_CONFIG[c];
+    var searchSheet = getSheet(configSearch.base);
+    if (searchSheet.getLastRow() < 2) continue;
+
+    var searchMap = getHeaderMapFlexible_(searchSheet);
+    var tokenColSearch = getCol_(searchMap, ALIASES.TOKEN);
+    if (!tokenColSearch) continue;
+
+    var tokenValues = searchSheet.getRange(2, tokenColSearch, searchSheet.getLastRow() - 1, 1).getValues();
+    for (var i = 0; i < tokenValues.length; i++) {
+      var rowTokenSearch = tokenValues[i][0];
+      if (rowTokenSearch && rowTokenSearch.toString().trim() === token.toString().trim()) {
+        var foundRowIndex = i + 2;
+        var foundValues = searchSheet.getRange(foundRowIndex, 1, 1, searchSheet.getLastColumn()).getValues()[0];
+        cache.put(cacheKey, JSON.stringify({ baseName: configSearch.base, rowIndex: foundRowIndex }), 21600);
+        return {
+          rowIndex: foundRowIndex,
+          values: foundValues,
+          headerMap: searchMap,
+          sheet: searchSheet,
+          baseName: configSearch.base,
+          tmkName: configSearch.tmk,
+          sucursal: configSearch.sucursal
+        };
+      }
+    }
+  }
+  return null;
 }

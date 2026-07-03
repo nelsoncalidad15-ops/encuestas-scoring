@@ -31,7 +31,9 @@ const panels = {
 };
 
 const btnNavPrev = document.getElementById("btn-nav-prev");
+const btnNavNext = document.getElementById("btn-nav-next");
 const btnNextText = document.getElementById("btn-next-text");
+const btnValidateSubmit = document.getElementById("btn-validate-submit");
 
 const stepTitles = {
   2: "Informacion del plan",
@@ -90,6 +92,31 @@ function showToast(message) {
 
 function hideToast() {
   errorToast.classList.add("hidden");
+}
+
+function setButtonLoading(button, active, label) {
+  if (!button) return;
+  button.disabled = active;
+  button.classList.toggle("opacity-70", active);
+  button.classList.toggle("cursor-not-allowed", active);
+  if (label && button.tagName === "BUTTON") {
+    if (button === btnNavNext && btnNextText) btnNextText.textContent = label;
+    else button.textContent = label;
+  }
+}
+
+function setLoadingMessageSequence(messages, intervalMs) {
+  let index = 0;
+  loadingOverlayText.textContent = messages[0] || "Procesando...";
+  const timer = setInterval(() => {
+    index += 1;
+    if (index >= messages.length) {
+      clearInterval(timer);
+      return;
+    }
+    loadingOverlayText.textContent = messages[index];
+  }, intervalMs || 1200);
+  return () => clearInterval(timer);
 }
 
 function applyClientContext() {
@@ -179,7 +206,12 @@ async function validateDni(event) {
 
   hideElement(viewStepValidation);
   showElement(viewLoadingOverlay);
-  loadingOverlayText.textContent = "Verificando identidad de forma segura...";
+  setButtonLoading(btnValidateSubmit, true, "Validando...");
+  const stopLoadingMessages = setLoadingMessageSequence([
+    "Verificando identidad de forma segura...",
+    "Buscando su validacion...",
+    "Preparando su formulario..."
+  ], 1000);
 
   try {
     const response = await fetch("/.netlify/functions/validarCliente", {
@@ -189,7 +221,9 @@ async function validateDni(event) {
     });
 
     const data = await response.json();
+    stopLoadingMessages();
     hideElement(viewLoadingOverlay);
+    setButtonLoading(btnValidateSubmit, false, "Validar y continuar");
 
     if (data.status === "OK") {
       validatedDni = dniVal;
@@ -214,7 +248,9 @@ async function validateDni(event) {
     } else showToast(data.message || "No pudimos validar su identidad en este momento.");
   } catch (error) {
     console.error(error);
+    stopLoadingMessages();
     hideElement(viewLoadingOverlay);
+    setButtonLoading(btnValidateSubmit, false, "Validar y continuar");
     showElement(viewStepValidation);
     showToast("Error de conexion. Verifique su acceso a internet e intente nuevamente.");
   }
@@ -302,7 +338,17 @@ async function submitSurvey() {
   hideToast();
   hideElement(surveyQuestionsContainer);
   showElement(viewLoadingOverlay);
-  loadingOverlayText.textContent = isDemoMode ? "Cerrando modo prueba..." : "Guardando validacion...";
+  setButtonLoading(btnNavNext, true, "Enviando...");
+  const stopSubmitMessages = setLoadingMessageSequence(
+    isDemoMode
+      ? ["Cerrando modo prueba..."]
+      : [
+          "Guardando validacion...",
+          "Registrando sus respuestas...",
+          "Finalizando proceso seguro..."
+        ],
+    1100
+  );
 
   const respuestas = {
     q1: getRadioValue("q1"),
@@ -323,7 +369,9 @@ async function submitSurvey() {
 
   try {
     if (isDemoMode) {
+      stopSubmitMessages();
       hideElement(viewLoadingOverlay);
+      setButtonLoading(btnNavNext, false, "Enviar validacion");
       hideElement(progressContainer);
       showElement(viewSuccess);
       viewSuccess.querySelector("h2").textContent = "Modo prueba finalizado";
@@ -338,7 +386,9 @@ async function submitSurvey() {
     });
 
     const data = await response.json();
+    stopSubmitMessages();
     hideElement(viewLoadingOverlay);
+    setButtonLoading(btnNavNext, false, "Enviar validacion");
 
     if (data.status === "OK") {
       hideElement(progressContainer);
@@ -357,7 +407,9 @@ async function submitSurvey() {
     } else showToast(data.message || "No pudimos guardar su encuesta.");
   } catch (error) {
     console.error(error);
+    stopSubmitMessages();
     hideElement(viewLoadingOverlay);
+    setButtonLoading(btnNavNext, false, "Enviar validacion");
     showElement(surveyQuestionsContainer);
     showToast("Error de red. No pudimos guardar su encuesta. Compruebe su conexion e intente nuevamente.");
   }
