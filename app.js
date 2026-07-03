@@ -175,6 +175,12 @@ function applyQuestionConfig(preguntas) {
   if (q3Block) q3Block.classList.toggle("hidden", !map.q3);
 }
 
+function getBackendRoute(name) {
+  const host = window.location.hostname;
+  const isLocal = host === "127.0.0.1" || host === "localhost";
+  return isLocal ? "/.netlify/functions/" + name : "/api/" + name;
+}
+
 function startDemoMode() {
   validatedDni = "00000000";
   clientData = {
@@ -214,7 +220,7 @@ async function validateDni(event) {
   ], 1000);
 
   try {
-    const response = await fetch("/.netlify/functions/validarCliente", {
+    const response = await fetch(getBackendRoute("validarCliente"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token: urlToken, dni: dniVal }),
@@ -379,7 +385,7 @@ async function submitSurvey() {
       return;
     }
 
-    const response = await fetch("/.netlify/functions/enviarEncuesta", {
+    const response = await fetch(getBackendRoute("enviarEncuesta"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token: urlToken, dni: validatedDni, respuestas }),
