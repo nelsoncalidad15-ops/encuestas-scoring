@@ -228,12 +228,15 @@
           </div>
 
           <div id="view-success" class="hidden py-10 text-center">
-            <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 text-emerald-700">
-              <i data-lucide="badge-check" class="h-8 w-8"></i>
+            <div id="success-icon-wrap" class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 text-emerald-700">
+              <i id="success-icon" data-lucide="badge-check" class="h-8 w-8"></i>
             </div>
-            <h2 class="mb-2 font-display text-2xl font-semibold">Validacion completada</h2>
-            <p class="mx-auto mb-6 max-w-lg text-sm leading-relaxed text-autosol-accent">Su validacion fue registrada correctamente en nuestro sistema central. Agradecemos su tiempo para ayudarnos a mantener la transparencia y seguridad de su Plan de Ahorro Autosol.</p>
-            <ul class="mx-auto max-w-md space-y-2 rounded-2xl border border-autosol-border bg-autosol-light/40 p-4 text-left text-sm text-autosol-accent">
+            <h2 id="success-title" class="mb-2 font-display text-2xl font-semibold">Validacion completada</h2>
+            <p id="success-description" class="mx-auto mb-4 max-w-lg text-sm leading-relaxed text-autosol-accent">Su validacion fue registrada correctamente en nuestro sistema central. Agradecemos su tiempo para ayudarnos a mantener la transparencia y seguridad de su Plan de Ahorro Autosol.</p>
+            <div id="success-pending-note" class="hidden mx-auto mb-4 max-w-lg rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              Estamos terminando de registrar su validacion. No cierre esta ventana por unos segundos.
+            </div>
+            <ul id="success-list" class="mx-auto max-w-md space-y-2 rounded-2xl border border-autosol-border bg-autosol-light/40 p-4 text-left text-sm text-autosol-accent">
               <li>Un asesor de Autosol auditara sus respuestas.</li>
               <li>Si corresponde, se revisara internamente la gestion comercial.</li>
               <li>Si solicito contacto, un asesor lo llamara a la brevedad.</li>

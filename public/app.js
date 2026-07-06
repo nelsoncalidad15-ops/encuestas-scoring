@@ -7,6 +7,7 @@ let isDemoMode = false;
 let validatedDni = "";
 let clientData = null;
 let currentStep = 2;
+let isSubmitting = false;
 const totalSteps = 5;
 
 const viewInitialCheck = document.getElementById("view-initial-check");
@@ -20,6 +21,12 @@ const progressBar = document.getElementById("progress-bar");
 const stepTitle = document.getElementById("step-title");
 const stepCounter = document.getElementById("step-counter");
 const viewSuccess = document.getElementById("view-success");
+const successIconWrap = document.getElementById("success-icon-wrap");
+const successIcon = document.getElementById("success-icon");
+const successTitle = document.getElementById("success-title");
+const successDescription = document.getElementById("success-description");
+const successPendingNote = document.getElementById("success-pending-note");
+const successList = document.getElementById("success-list");
 const errorToast = document.getElementById("error-toast");
 const errorToastMessage = document.getElementById("error-toast-message");
 
@@ -42,12 +49,18 @@ const stepTitles = {
   5: "Cierre",
 };
 
+window.addEventListener("beforeunload", (event) => {
+  if (!isSubmitting) return;
+  event.preventDefault();
+  event.returnValue = "";
+});
+
 window.addEventListener("DOMContentLoaded", () => {
   const params = new URLSearchParams(window.location.search);
   urlToken = params.get("t") || "";
   isDemoMode = params.get("demo") === "1" || params.get("prueba") === "1" || (params.get("modo") || "").toLowerCase() === "prueba";
 
-  if (window.lucide) window.lucide.createIcons();
+  refreshIcons();
 
   bindInteractiveFields();
 
@@ -105,6 +118,76 @@ function setButtonLoading(button, active, label) {
   }
 }
 
+function refreshIcons() {
+  if (window.lucide) window.lucide.createIcons();
+}
+
+function setSubmittingState(active) {
+  isSubmitting = active;
+}
+
+function setSuccessState(mode) {
+  const states = {
+    pending: {
+      wrapClass: "mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-amber-50 text-amber-700",
+      icon: "loader-circle",
+      title: "Estamos registrando su validacion",
+      description: "Su encuesta ya fue enviada. Estamos guardando la informacion de forma segura en nuestro sistema.",
+      note: "No cierre esta ventana por unos segundos hasta que finalice el proceso.",
+      items: [
+        "El envio ya esta en proceso.",
+        "En unos segundos vera la confirmacion final.",
+        "Si solicito contacto, el equipo lo revisara al finalizar."
+      ]
+    },
+    success: {
+      wrapClass: "mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 text-emerald-700",
+      icon: "badge-check",
+      title: "Validacion completada",
+      description: "Su validacion fue registrada correctamente en nuestro sistema central. Agradecemos su tiempo para ayudarnos a mantener la transparencia y seguridad de su Plan de Ahorro Autosol.",
+      note: "",
+      items: [
+        "Un asesor de Autosol auditara sus respuestas.",
+        "Si corresponde, se revisara internamente la gestion comercial.",
+        "Si solicito contacto, un asesor lo llamara a la brevedad."
+      ]
+    },
+    alreadyDone: {
+      wrapClass: "mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-sky-50 text-sky-700",
+      icon: "shield-check",
+      title: "Validacion ya realizada",
+      description: "Esta validacion ya fue registrada anteriormente. Muchas gracias por su colaboracion.",
+      note: "",
+      items: [
+        "No necesita volver a completar este formulario."
+      ]
+    },
+    demo: {
+      wrapClass: "mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 text-slate-700",
+      icon: "flask-conical",
+      title: "Modo prueba finalizado",
+      description: "La encuesta se completo en modo prueba. No se valido identidad ni se guardaron respuestas.",
+      note: "",
+      items: [
+        "Este recorrido sirvio solo para revisar la experiencia."
+      ]
+    }
+  };
+
+  const state = states[mode] || states.success;
+  if (successIconWrap) successIconWrap.className = state.wrapClass;
+  if (successIcon) successIcon.setAttribute("data-lucide", state.icon);
+  if (successTitle) successTitle.textContent = state.title;
+  if (successDescription) successDescription.textContent = state.description;
+  if (successPendingNote) {
+    successPendingNote.textContent = state.note || "";
+    successPendingNote.classList.toggle("hidden", !state.note);
+  }
+  if (successList) {
+    successList.innerHTML = state.items.map((item) => "<li>" + item + "</li>").join("");
+  }
+  refreshIcons();
+}
 function setLoadingMessageSequence(messages, intervalMs) {
   let index = 0;
   loadingOverlayText.textContent = messages[0] || "Procesando...";
@@ -248,9 +331,8 @@ async function validateDni(event) {
     else if (data.status === "TOKEN_INVALIDO") showToast("El enlace no es valido o se encuentra vencido.");
     else if (data.status === "YA_RESPONDIO") {
       hideElement(viewStepValidation);
+      setSuccessState("alreadyDone");
       showElement(viewSuccess);
-      viewSuccess.querySelector("h2").textContent = "Validacion ya realizada";
-      viewSuccess.querySelector("p").textContent = "Esta validacion ya fue registrada anteriormente. Muchas gracias por su colaboracion.";
     } else showToast(data.message || "No pudimos validar su identidad en este momento.");
   } catch (error) {
     console.error(error);
@@ -342,19 +424,6 @@ function toggleObservationsRequired(required) {
 
 async function submitSurvey() {
   hideToast();
-  hideElement(surveyQuestionsContainer);
-  showElement(viewLoadingOverlay);
-  setButtonLoading(btnNavNext, true, "Enviando...");
-  const stopSubmitMessages = setLoadingMessageSequence(
-    isDemoMode
-      ? ["Cerrando modo prueba..."]
-      : [
-          "Guardando validacion...",
-          "Registrando sus respuestas...",
-          "Finalizando proceso seguro..."
-        ],
-    1100
-  );
 
   const respuestas = {
     q1: getRadioValue("q1"),
@@ -373,49 +442,56 @@ async function submitSurvey() {
     q10: document.getElementById("input-q10").value.trim(),
   };
 
-  try {
-    if (isDemoMode) {
-      stopSubmitMessages();
-      hideElement(viewLoadingOverlay);
-      setButtonLoading(btnNavNext, false, "Enviar validacion");
-      hideElement(progressContainer);
-      showElement(viewSuccess);
-      viewSuccess.querySelector("h2").textContent = "Modo prueba finalizado";
-      viewSuccess.querySelector("p").textContent = "La encuesta se completo en modo prueba. No se valido identidad ni se guardaron respuestas.";
-      return;
-    }
+  if (isDemoMode) {
+    hideElement(surveyQuestionsContainer);
+    hideElement(progressContainer);
+    setSuccessState("demo");
+    showElement(viewSuccess);
+    return;
+  }
 
+  setSubmittingState(true);
+  setButtonLoading(btnNavNext, true, "Enviando...");
+  hideElement(surveyQuestionsContainer);
+  hideElement(viewLoadingOverlay);
+  hideElement(progressContainer);
+  setSuccessState("pending");
+  showElement(viewSuccess);
+
+  try {
     const response = await fetch(getBackendRoute("enviarEncuesta"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token: urlToken, dni: validatedDni, respuestas }),
+      keepalive: true,
+      cache: "no-store",
     });
 
     const data = await response.json();
-    stopSubmitMessages();
-    hideElement(viewLoadingOverlay);
+    setSubmittingState(false);
     setButtonLoading(btnNavNext, false, "Enviar validacion");
 
     if (data.status === "OK") {
-      hideElement(progressContainer);
-      showElement(viewSuccess);
+      setSuccessState("success");
       return;
     }
 
+    if (data.status === "YA_RESPONDIO") {
+      setSuccessState("alreadyDone");
+      return;
+    }
+
+    hideElement(viewSuccess);
+    showElement(progressContainer);
     showElement(surveyQuestionsContainer);
     if (data.status === "DNI_INVALIDO") showToast("Error de validacion: el DNI no coincide.");
-    else if (data.status === "YA_RESPONDIO") {
-      hideElement(surveyQuestionsContainer);
-      hideElement(progressContainer);
-      showElement(viewSuccess);
-      viewSuccess.querySelector("h2").textContent = "Validacion ya realizada";
-      viewSuccess.querySelector("p").textContent = "Esta validacion ya fue registrada anteriormente. Muchas gracias por su colaboracion.";
-    } else showToast(data.message || "No pudimos guardar su encuesta.");
+    else showToast(data.message || "No pudimos guardar su encuesta.");
   } catch (error) {
     console.error(error);
-    stopSubmitMessages();
-    hideElement(viewLoadingOverlay);
+    setSubmittingState(false);
     setButtonLoading(btnNavNext, false, "Enviar validacion");
+    hideElement(viewSuccess);
+    showElement(progressContainer);
     showElement(surveyQuestionsContainer);
     showToast("Error de red. No pudimos guardar su encuesta. Compruebe su conexion e intente nuevamente.");
   }

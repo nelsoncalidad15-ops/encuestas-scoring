@@ -34,7 +34,7 @@
   <body>
     <div class="wrap">
       <div id="errorBox" class="error hidden"></div>
-      <div id="loading" class="card">
+      <div id="loading" class="card hidden">
         <div class="eyebrow">Modo llamada</div>
         <div class="title">Cargando ficha...</div>
         <div class="muted">Estamos preparando la informacion del cliente.</div>
@@ -77,6 +77,7 @@
     </div>
     <script>
       const CONTEXT = <?= JSON.stringify(context) ?>;
+      const INITIAL_DATA = <?= JSON.stringify(initialData) ?>;
       const $ = (id) => document.getElementById(id);
       function showError(message){const box=$("errorBox");box.textContent=message||"Error inesperado.";box.classList.remove("hidden");}
       function hideError(){$("errorBox").classList.add("hidden");}
@@ -88,9 +89,10 @@
       function validateForm(){const q3Visible=!$("q3Wrap").classList.contains("hidden"); if(!radioValue("q1")||!radioValue("q2")||!radioValue("q4")) return false; if(q3Visible && !radioValue("q3")) return false; if(radioValue("q4")==="Si" && !$("q4a").value.trim()) return false; if(!$("q5").value.trim()||!radioValue("q5a")||!$("q5b").value.trim()) return false; if(!$("q6").value.trim()||!radioValue("q7")||!radioValue("q8")||!radioValue("q9")) return false; if(radioValue("q7")==="Si" && !$("q7a").value.trim()) return false; if(radioValue("q9")==="Si" && !$("q10").value.trim()) return false; return true;}
       function buildRespuestas(){return {q1:radioValue("q1"),q2:radioValue("q2"),q3:radioValue("q3"),q4:radioValue("q4"),q4a:$("q4a").value.trim(),q5:$("q5").value.trim(),q5a:radioValue("q5a"),q5b:$("q5b").value.trim(),q6:$("q6").value.trim(),q7:radioValue("q7"),q7a:$("q7a").value.trim(),q8:radioValue("q8"),q9:radioValue("q9"),q10:$("q10").value.trim()};}
       function toggleConditionals(){$("q7aWrap").classList.toggle("hidden", radioValue("q7")!=="Si"); $("q10Help").classList.toggle("hidden", radioValue("q9")!=="Si");}
+      function renderInitial(){ if(!INITIAL_DATA||INITIAL_DATA.status!=="OK"){showError((INITIAL_DATA&&INITIAL_DATA.message)||"No se pudo cargar la ficha."); return;} $("formView").classList.remove("hidden"); fillData(INITIAL_DATA); toggleConditionals(); }
       document.addEventListener("change",(event)=>{if(["q7","q9"].includes(event.target.name)) toggleConditionals();});
       $("callForm").addEventListener("submit",(event)=>{event.preventDefault();hideError(); if(!validateForm()){showError("Complete los campos obligatorios antes de guardar.");return;} const btn=$("saveBtn"); btn.disabled=true; btn.textContent="Guardando..."; google.script.run.withSuccessHandler((result)=>{btn.disabled=false; btn.textContent="Guardar llamada"; if(!result||result.status!=="OK"){showError((result&&result.message)||"No se pudo guardar la llamada.");return;} $("formView").classList.add("hidden"); $("successView").classList.remove("hidden");}).withFailureHandler((error)=>{btn.disabled=false; btn.textContent="Guardar llamada"; showError(error&&error.message?error.message:"No se pudo guardar la llamada.");}).guardarLlamadaSidebar(CONTEXT, buildRespuestas());});
-      google.script.run.withSuccessHandler((data)=>{if(!data||data.status!=="OK"){showError((data&&data.message)||"No se pudo cargar la ficha.");return;} $("loading").classList.add("hidden"); $("formView").classList.remove("hidden"); fillData(data); toggleConditionals();}).withFailureHandler((error)=>{showError(error&&error.message?error.message:"No se pudo cargar la ficha.");}).cargarLlamadaSidebar(CONTEXT);
+      renderInitial();
     </script>
   </body>
 </html>

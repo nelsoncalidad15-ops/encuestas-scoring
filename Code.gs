@@ -3882,3 +3882,545 @@ function guardarLlamadaInterna_(context, respuestas) {
   registrarLog(clienteInfo.token || "", clienteInfo.dniHash || "", "OK", "Llamada procesada: " + scoring.resultado, "guardarLlamadaInterna");
   return { status: "OK", scoringResult: scoring.resultado };
 }
+
+/**************************************************************
+ * OVERRIDE FINAL - LLAMADA INTERNA RAPIDA
+ **************************************************************/
+
+function getConfigPorSucursal_(sucursal) {
+  var key = String(sucursal || '').toUpperCase().trim();
+  for (var i = 0; i < SOLICITUDES_CONFIG.length; i++) {
+    if (String(SOLICITUDES_CONFIG[i].sucursal || '').toUpperCase().trim() === key) return SOLICITUDES_CONFIG[i];
+  }
+  return null;
+}
+
+function obtenerContextoFilaSeleccionada_() {
+  var activeSheet = SpreadsheetApp.getActiveSheet();
+  var activeRange = SpreadsheetApp.getActiveRange();
+  var rowIndex = activeRange ? activeRange.getRow() : 0;
+  if (!activeSheet || rowIndex < 2) return null;
+
+  var sheetName = activeSheet.getName();
+  var map = getHeaderMapFlexible_(activeSheet);
+  var row = activeSheet.getRange(rowIndex, 1, 1, activeSheet.getLastColumn()).getValues()[0];
+  var token = '';
+  var idCliente = '';
+  var baseName = '';
+  var sucursal = '';
+
+  if (sheetName === 'SOLICITUDES JUJUY' || sheetName === 'SOLICITUDES SALTA') {
+    var config = getConfigPorBase_(sheetName);
+    if (!config) return null;
+    procesarFilaSolicitudRapida_(activeSheet, rowIndex, config);
+    map = getHeaderMapFlexible_(activeSheet);
+    row = activeSheet.getRange(rowIndex, 1, 1, activeSheet.getLastColumn()).getValues()[0];
+    token = getVal_(row, map, ALIASES.TOKEN);
+    idCliente = getVal_(row, map, ALIASES.ID_CLIENTE);
+    baseName = sheetName;
+    sucursal = config.sucursal;
+  } else {
+    token = getVal_(row, map, 'TOKEN');
+    idCliente = getVal_(row, map, 'ID_CLIENTE');
+    sucursal = getVal_(row, map, 'SUCURSAL');
+    var configBySucursal = getConfigPorSucursal_(sucursal);
+    if (configBySucursal) baseName = configBySucursal.base;
+    var origen = buscarSolicitudPorIdToken_(idCliente, token);
+    if (origen) {
+      baseName = origen.baseName;
+      sucursal = origen.sucursal;
+      token = token || getVal_(origen.values, origen.headerMap, ALIASES.TOKEN);
+      idCliente = idCliente || getVal_(origen.values, origen.headerMap, ALIASES.ID_CLIENTE);
+    }
+  }
+
+  return {
+    token: token ? String(token).trim() : '',
+    idCliente: idCliente ? String(idCliente).trim() : '',
+    activeSheetName: sheetName,
+    activeRow: rowIndex,
+    baseName: baseName,
+    sucursal: sucursal
+  };
+}
+
+function buscarFilaDesdeContexto_(context) {
+  context = context || {};
+  var token = String(context.token || '').trim();
+  var idCliente = String(context.idCliente || '').trim();
+  var baseName = String(context.baseName || '').trim();
+
+  if (baseName && context.activeSheetName && baseName === context.activeSheetName) {
+    var config = getConfigPorBase_(baseName);
+    if (config && context.activeRow >= 2) {
+      var sheet = getSheet(config.base);
+      if (context.activeRow <= sheet.getLastRow()) {
+        return {
+          rowIndex: context.activeRow,
+          values: sheet.getRange(context.activeRow, 1, 1, sheet.getLastColumn()).getValues()[0],
+          headerMap: getHeaderMapFlexible_(sheet),
+          sheet: sheet,
+          baseName: config.base,
+          tmkName: config.tmk,
+          sucursal: config.sucursal
+        };
+      }
+    }
+  }
+
+  if (idCliente || token) {
+    var byId = buscarSolicitudPorIdToken_(idCliente, token);
+    if (byId) return byId;
+  }
+
+  if (token) {
+    var byToken = buscarFilaPorToken(token);
+    if (byToken) return byToken;
+  }
+
+  return null;
+}
+
+function guardarRespuestaScoringRapida_(cliente, respuestas, scoring) {
+  var sheet = getSheet('Respuestas_Scoring');
+  if (sheet.getLastRow() === 0 || sheet.getLastColumn() === 0) {
+    sheet.getRange(1, 1, 1, HEADERS_RESPUESTAS_SCORING.length).setValues([HEADERS_RESPUESTAS_SCORING]);
+  }
+  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  var newRow = [];
+  var idRespuesta = 'R-' + Utilities.getUuid().slice(0, 8).toUpperCase();
+  var fechaActual = new Date();
+
+  for (var i = 0; i < headers.length; i++) {
+    var h = headers[i];
+    var val = '';
+    switch (h) {
+      case 'ID_RESPUESTA': val = idRespuesta; break;
+      case 'ID_CLIENTE': val = cliente.idCliente; break;
+      case 'TOKEN_HASH': val = cliente.token; break;
+      case 'DNI_HASH': val = cliente.dniHash; break;
+      case 'Fecha respuesta': val = fechaActual; break;
+      case 'Nombre y Apellido': val = cliente.nombre; break;
+      case 'Modelo suscripto': val = cliente.modelo; break;
+      case 'Nombre del Asesor': val = cliente.asesor; break;
+      case 'Monto_2da_cuota_base': val = cliente.montoCuota2Base; break;
+      case 'Q1_Conocia_plan_exclusivo': val = respuestas.q1; break;
+      case 'Q2_Informaron_licitacion_cuota_2': val = respuestas.q2; break;
+      case 'Q3_Informaron_adjudicacion_asegurada': val = respuestas.q3; break;
+      case 'Q4_Informaron_monto_cuota_2': val = respuestas.q4; break;
+      case 'Q4A_Monto_estimado_cuota_2': val = respuestas.q4a || ''; break;
+      case 'Q5_Monto_primera_cuota': val = respuestas.q5; break;
+      case 'Q5A_Acepto_debito_automatico': val = respuestas.q5a; break;
+      case 'Q5B_Fecha_pago_primera_cuota': val = respuestas.q5b; break;
+      case 'Q6_Quien_es_vendedor': val = respuestas.q6; break;
+      case 'Q7_Tuvo_otro_plan_reciente': val = respuestas.q7; break;
+      case 'Q7A_Detalle_otro_plan': val = respuestas.q7a || ''; break;
+      case 'Q8_Como_conocio_propuesta': val = respuestas.q8; break;
+      case 'Q9_Necesita_recontacto': val = respuestas.q9; break;
+      case 'Q10_Observaciones_cliente': val = respuestas.q10 || ''; break;
+      case 'RESULTADO_SCORING': val = scoring.resultado; break;
+      case 'MOTIVO_RESULTADO': val = scoring.motivo; break;
+      case 'REQUIERE_RECONTACTO': val = scoring.requiereRecontacto; break;
+      case 'AREA_A_REVISAR': val = scoring.area; break;
+      case 'OBSERVACION_INTERNA': val = scoring.observacion; break;
+    }
+    newRow.push(val);
+  }
+
+  sheet.appendRow(newRow);
+}
+
+function volcarRespuestaEnTMKRapida_(rowData, respuestas, scoring, canal) {
+  var tmkSheet = getSheet(rowData.tmkName);
+  var tmkMap = getHeaderMapFlexible_(tmkSheet);
+  var targetRow = buscarFilaTMKPorIdToken_(tmkSheet, tmkMap,
+    getVal_(rowData.values, rowData.headerMap, ALIASES.ID_CLIENTE),
+    getVal_(rowData.values, rowData.headerMap, ALIASES.TOKEN)
+  );
+  if (!targetRow) return;
+  escribirRespuestasEnFilaTMK_(tmkSheet, targetRow, tmkMap, respuestas, scoring, canal);
+  aplicarFormatoFilaTmk_(tmkSheet, targetRow);
+}
+
+function obtenerDatosLlamada_(context) {
+  var rowData = (typeof context === 'string') ? buscarFilaPorToken(context) : buscarFilaDesdeContexto_(context);
+  if (!rowData) return { status: 'TOKEN_INVALIDO', message: 'No se encontro la solicitud.' };
+
+  var rowValues = rowData.values;
+  var headerMap = rowData.headerMap;
+  var estadoEncuesta = String(getVal_(rowValues, headerMap, ALIASES.ESTADO_ENCUESTA) || '');
+  if (estadoEncuesta === 'Respondido' || estadoEncuesta === 'Scoring telefonico') {
+    return { status: 'YA_RESPONDIO', message: 'Esta gestion ya fue cerrada.' };
+  }
+
+  var clienteSeguro = {
+    nombre: getVal_(rowValues, headerMap, ALIASES.NOMBRE),
+    modelo: getVal_(rowValues, headerMap, ALIASES.MODELO),
+    asesor: getVal_(rowValues, headerMap, ALIASES.VENDEDOR),
+    montoCuota2: getVal_(rowValues, headerMap, ALIASES.CUOTA_2),
+    medioPagoPrevisto: getVal_(rowValues, headerMap, ALIASES.TIPO_PAGO),
+    telefono: getVal_(rowValues, headerMap, ALIASES.TELEFONO),
+    solicitud: getVal_(rowValues, headerMap, ALIASES.SOLICITUD),
+    sucursal: rowData.sucursal,
+    planAuto: (analizarPlanAuto_(getVal_(rowValues, headerMap, ALIASES.MODELO)) || {}).plan || ''
+  };
+
+  var respuestas = {};
+  var tmkSheet = getSheet(rowData.tmkName);
+  var tmkMap = getHeaderMapFlexible_(tmkSheet);
+  var tmkRow = buscarFilaTMKPorIdToken_(tmkSheet, tmkMap, getVal_(rowValues, headerMap, ALIASES.ID_CLIENTE), getVal_(rowValues, headerMap, ALIASES.TOKEN));
+  if (tmkRow) {
+    var filaTmk = tmkSheet.getRange(tmkRow, 1, 1, tmkSheet.getLastColumn()).getValues()[0];
+    respuestas = construirRespuestasGuardadasDesdeRow_(filaTmk, tmkMap);
+  }
+
+  return { status: 'OK', cliente: clienteSeguro, preguntas: construirPreguntasFrontend_(clienteSeguro), respuestas: respuestas };
+}
+
+function guardarLlamadaInterna_(context, respuestas) {
+  var rowData = (typeof context === 'string') ? buscarFilaPorToken(context) : buscarFilaDesdeContexto_(context);
+  if (!rowData) {
+    return { status: 'TOKEN_INVALIDO', message: 'No se encontro la solicitud.' };
+  }
+
+  var rowValues = rowData.values;
+  var headerMap = rowData.headerMap;
+  var estadoEncuesta = String(getVal_(rowValues, headerMap, ALIASES.ESTADO_ENCUESTA) || '');
+  if (estadoEncuesta === 'Respondido' || estadoEncuesta === 'Scoring telefonico') {
+    return { status: 'YA_RESPONDIO', message: 'Esta gestion ya fue cerrada.' };
+  }
+
+  var scoring = calcularScoring(respuestas);
+  var clienteInfo = construirClienteInfoDesdeRowData_(rowData);
+  guardarRespuestaScoringRapida_(clienteInfo, respuestas, scoring);
+  actualizarSolicitudConScoring_(rowData, scoring, 'TELEFONICO');
+  volcarRespuestaEnTMKRapida_(rowData, respuestas, scoring, 'TELEFONICO');
+  registrarLog(clienteInfo.token || '', clienteInfo.dniHash || '', 'OK', 'Llamada procesada: ' + scoring.resultado, 'guardarLlamadaInternaRapida');
+  return { status: 'OK', scoringResult: scoring.resultado };
+}
+
+function abrirLlamadaModalDesdeSeleccion_() {
+  var context = obtenerContextoFilaSeleccionada_();
+  if (!context || (!context.token && !context.idCliente)) return 'No se pudo obtener el cliente de la fila seleccionada.';
+  var initialData = obtenerDatosLlamada_(context);
+  var template = HtmlService.createTemplateFromFile('LlamadaSidebar');
+  template.context = context;
+  template.initialData = initialData;
+  var html = template.evaluate().setTitle('Scoring por llamada').setWidth(760).setHeight(840);
+  SpreadsheetApp.getUi().showModalDialog(html, 'Scoring por llamada');
+  return 'Ventana de llamada abierta.';
+}
+
+function cargarLlamadaSidebar(context) {
+  return obtenerDatosLlamada_(context);
+}
+
+function guardarLlamadaSidebar(context, respuestas) {
+  return guardarLlamadaInterna_(context, respuestas);
+}
+
+/**************************************************************
+ * OVERRIDE FINAL - ABRIR FICHA DIRECTO DESDE LA FILA SELECCIONADA
+ **************************************************************/
+
+function construirClienteSeguroDesdeFilaSeleccionada_(sheet, row, map, sucursalFallback) {
+  var sucursal = getVal_(row, map, 'SUCURSAL') || sucursalFallback || '';
+  return {
+    nombre: getVal_(row, map, ALIASES.NOMBRE) || getVal_(row, map, 'NOMBRE Y APELLIDO'),
+    modelo: getVal_(row, map, ALIASES.MODELO) || getVal_(row, map, 'Modelo suscripto/ plan'),
+    asesor: getVal_(row, map, ALIASES.VENDEDOR) || getVal_(row, map, 'NOMBRE DEL VENDEDOR'),
+    montoCuota2: getVal_(row, map, ALIASES.CUOTA_2) || getVal_(row, map, 'CUOTA 2'),
+    medioPagoPrevisto: getVal_(row, map, ALIASES.TIPO_PAGO) || getVal_(row, map, 'TIPO DE PAGO'),
+    telefono: getVal_(row, map, ALIASES.TELEFONO) || getVal_(row, map, 'TELEFONO'),
+    solicitud: getVal_(row, map, ALIASES.SOLICITUD) || getVal_(row, map, 'N° DE SOLICITUD'),
+    sucursal: sucursal,
+    planAuto: (analizarPlanAuto_(getVal_(row, map, ALIASES.MODELO) || getVal_(row, map, 'Modelo suscripto/ plan')) || {}).plan || ''
+  };
+}
+
+function construirDatosLlamadaDesdeSeleccionActual_() {
+  var activeSheet = SpreadsheetApp.getActiveSheet();
+  var activeRange = SpreadsheetApp.getActiveRange();
+  var rowIndex = activeRange ? activeRange.getRow() : 0;
+  if (!activeSheet || rowIndex < 2) return { status: 'ERROR', message: 'Seleccione una fila valida.' };
+
+  var sheetName = activeSheet.getName();
+  var map = getHeaderMapFlexible_(activeSheet);
+  var row = activeSheet.getRange(rowIndex, 1, 1, activeSheet.getLastColumn()).getValues()[0];
+  var context = obtenerContextoFilaSeleccionada_();
+  if (!context) return { status: 'ERROR', message: 'No se pudo identificar la fila seleccionada.' };
+
+  if (sheetName === 'SOLICITUDES JUJUY' || sheetName === 'SOLICITUDES SALTA') {
+    var config = getConfigPorBase_(sheetName);
+    if (!config) return { status: 'ERROR', message: 'No se pudo identificar la hoja de solicitudes.' };
+    procesarFilaSolicitudRapida_(activeSheet, rowIndex, config);
+    map = getHeaderMapFlexible_(activeSheet);
+    row = activeSheet.getRange(rowIndex, 1, 1, activeSheet.getLastColumn()).getValues()[0];
+
+    var clienteBase = construirClienteSeguroDesdeFilaSeleccionada_(activeSheet, row, map, config.sucursal);
+    var respuestasBase = {};
+    var tokenBase = getVal_(row, map, ALIASES.TOKEN);
+    var idClienteBase = getVal_(row, map, ALIASES.ID_CLIENTE);
+    var tmkSheetBase = getSheet(config.tmk);
+    var tmkMapBase = getHeaderMapFlexible_(tmkSheetBase);
+    var tmkRowBase = buscarFilaTMKPorIdToken_(tmkSheetBase, tmkMapBase, idClienteBase, tokenBase);
+    if (tmkRowBase) {
+      var filaTmkBase = tmkSheetBase.getRange(tmkRowBase, 1, 1, tmkSheetBase.getLastColumn()).getValues()[0];
+      respuestasBase = construirRespuestasGuardadasDesdeRow_(filaTmkBase, tmkMapBase);
+    }
+
+    return {
+      status: 'OK',
+      cliente: clienteBase,
+      preguntas: construirPreguntasFrontend_(clienteBase),
+      respuestas: respuestasBase,
+      context: context
+    };
+  }
+
+  var cliente = construirClienteSeguroDesdeFilaSeleccionada_(activeSheet, row, map, context.sucursal);
+  var respuestas = construirRespuestasGuardadasDesdeRow_(row, map);
+
+  if (!cliente.nombre || !cliente.modelo) {
+    var fallback = obtenerDatosLlamada_(context);
+    if (fallback && fallback.status === 'OK') return fallback;
+    return { status: 'ERROR', message: 'No se pudo cargar la ficha.' };
+  }
+
+  return {
+    status: 'OK',
+    cliente: cliente,
+    preguntas: construirPreguntasFrontend_(cliente),
+    respuestas: respuestas,
+    context: context
+  };
+}
+
+function abrirLlamadaModalDesdeSeleccion_() {
+  var initialData = construirDatosLlamadaDesdeSeleccionActual_();
+  if (!initialData || initialData.status !== 'OK') return (initialData && initialData.message) || 'No se pudo cargar la ficha.';
+
+  var template = HtmlService.createTemplateFromFile('LlamadaSidebar');
+  template.context = initialData.context || obtenerContextoFilaSeleccionada_();
+  template.initialData = initialData;
+  var html = template.evaluate().setTitle('Scoring por llamada').setWidth(760).setHeight(840);
+  SpreadsheetApp.getUi().showModalDialog(html, 'Scoring por llamada');
+  return 'Ventana de llamada abierta.';
+}
+
+/**************************************************************
+ * OVERRIDE FINAL - GUARDADO ULTRARAPIDO WEB Y LLAMADA
+ **************************************************************/
+
+function volcarRespuestaEnTMKRapida_(rowData, respuestas, scoring, canal) {
+  var tmkSheet = getSheet(rowData.tmkName);
+  var tmkMap = getHeaderMapFlexible_(tmkSheet);
+  var idCliente = getVal_(rowData.values, rowData.headerMap, ALIASES.ID_CLIENTE);
+  var token = getVal_(rowData.values, rowData.headerMap, ALIASES.TOKEN);
+  var targetRow = buscarFilaTMKPorIdToken_(tmkSheet, tmkMap, idCliente, token);
+
+  if (!targetRow) {
+    var config = getConfigPorBase_(rowData.baseName);
+    if (config) {
+      targetRow = upsertFilaTMKDesdeSolicitud_(config, rowData.rowIndex);
+      tmkMap = getHeaderMapFlexible_(tmkSheet);
+    }
+  }
+
+  if (!targetRow) return;
+  escribirRespuestasEnFilaTMK_(tmkSheet, targetRow, tmkMap, respuestas, scoring, canal);
+  aplicarFormatoFilaTmk_(tmkSheet, targetRow);
+}
+
+function guardarEncuesta(token, dni, respuestas) {
+  var dniNormalizado = normalizarDni(dni);
+  var dniHashInput = generarHash(dniNormalizado);
+  var rowData = buscarFilaPorToken(token);
+  if (!rowData) {
+    registrarLog(token, dniHashInput, 'TOKEN_INVALIDO', 'Token inexistente al intentar guardar', 'guardarEncuestaRapidaFinal');
+    return jsonResponse({ status: 'TOKEN_INVALIDO' });
+  }
+
+  var rowValues = rowData.values;
+  var headerMap = rowData.headerMap;
+  var estadoEncuesta = String(getVal_(rowValues, headerMap, ALIASES.ESTADO_ENCUESTA) || '').trim();
+  if (estadoEncuesta === 'Respondido') {
+    registrarLog(token, dniHashInput, 'YA_RESPONDIO', 'Encuesta duplicada rechazada al guardar', 'guardarEncuestaRapidaFinal');
+    return jsonResponse({ status: 'YA_RESPONDIO' });
+  }
+
+  var dniHashSheet = String(getVal_(rowValues, headerMap, ALIASES.DNI_HASH) || '').trim();
+  var dniPlanoSheet = normalizarDni(getVal_(rowValues, headerMap, ALIASES.DNI));
+  var coincideHash = dniHashInput === dniHashSheet;
+  var coincidePlano = !!dniPlanoSheet && dniNormalizado === dniPlanoSheet;
+  if (!coincideHash && !coincidePlano) {
+    registrarLog(token, dniHashInput, 'DNI_INVALIDO', 'DNI incorrecto al intentar guardar', 'guardarEncuestaRapidaFinal');
+    return jsonResponse({ status: 'DNI_INVALIDO' });
+  }
+
+  var scoring = calcularScoring(respuestas);
+  var clienteInfo = construirClienteInfoDesdeRowData_(rowData);
+  guardarRespuestaScoringRapida_(clienteInfo, respuestas, scoring);
+  actualizarSolicitudConScoring_(rowData, scoring, 'WEB');
+  volcarRespuestaEnTMKRapida_(rowData, respuestas, scoring, 'WEB');
+  registrarLog(token, dniHashInput, 'OK', 'Encuesta procesada: ' + scoring.resultado, 'guardarEncuestaRapidaFinal');
+  return jsonResponse({ status: 'OK', scoringResult: scoring.resultado });
+}
+
+function guardarLlamadaInterna_(context, respuestas) {
+  var rowData = (typeof context === 'string') ? buscarFilaPorToken(context) : buscarFilaDesdeContexto_(context);
+  if (!rowData) {
+    return { status: 'TOKEN_INVALIDO', message: 'No se encontro la solicitud.' };
+  }
+
+  var rowValues = rowData.values;
+  var headerMap = rowData.headerMap;
+  var estadoEncuesta = String(getVal_(rowValues, headerMap, ALIASES.ESTADO_ENCUESTA) || '').trim();
+  if (estadoEncuesta === 'Respondido' || estadoEncuesta === 'Scoring telefonico') {
+    return { status: 'YA_RESPONDIO', message: 'Esta gestion ya fue cerrada.' };
+  }
+
+  var scoring = calcularScoring(respuestas);
+  var clienteInfo = construirClienteInfoDesdeRowData_(rowData);
+  guardarRespuestaScoringRapida_(clienteInfo, respuestas, scoring);
+  actualizarSolicitudConScoring_(rowData, scoring, 'TELEFONICO');
+  volcarRespuestaEnTMKRapida_(rowData, respuestas, scoring, 'TELEFONICO');
+  registrarLog(clienteInfo.token || '', clienteInfo.dniHash || '', 'OK', 'Llamada procesada: ' + scoring.resultado, 'guardarLlamadaInternaRapidaFinal');
+  return { status: 'OK', scoringResult: scoring.resultado };
+}
+
+/**************************************************************
+ * OVERRIDE FINAL - INSTRUCCIONES OPERATIVAS
+ **************************************************************/
+
+function ensureInstruccionesSheet_() {
+  var sheet = getSheet('INSTRUCCIONES');
+  sheet.clear();
+
+  var rows = [
+    ['AUTOSOL - GUIA OPERATIVA'],
+    [''],
+    ['ETAPA', 'QUE HACER', 'QUIEN', 'RESULTADO ESPERADO'],
+    ['1. Carga inicial', 'Cargar cada cliente nuevo en SOLICITUDES JUJUY o SOLICITUDES SALTA. Completar solo datos necesarios.', 'Recepcion', 'Queda lista la fila para generar link y seguimiento.'],
+    ['2. Generar gestion', 'Marcar la casilla GENERAR o usar el menu Generar desde solicitudes.', 'Recepcion / Administracion', 'Se crea TOKEN, LINK_ENCUESTA, ENVIAR WPP y la fila correspondiente en TMK.'],
+    ['3. Envio al cliente', 'Enviar el WhatsApp desde la columna ENVIAR WPP o copiar el link si se comparte por otro medio.', 'Recepcion / TMK', 'El cliente recibe su acceso personalizado.'],
+    ['4. Respuesta web', 'Si el cliente completa la encuesta web, el sistema guarda respuestas, scoring y decision.', 'Cliente', 'Se actualiza SOLICITUDES, Respuestas_Scoring y TMK.'],
+    ['5. Gestion telefonica', 'Si no responde web o requiere contacto, trabajar la fila desde TMK y usar Abrir llamada fila seleccionada.', 'TMK', 'Se completa scoring por llamada sobre la misma gestion.'],
+    ['6. Rechazados', 'Si DECISION_FINAL queda RECHAZADO o REVISAR, usar Actualizar TMK y rechazados para refrescar la vista operativa.', 'TMK / Supervisor', 'La gestion queda visible para seguimiento y correccion.'],
+    ['7. Regenerar link', 'Si hace falta repetir encuesta por rechazo o error, usar Regenerar link fila seleccionada.', 'TMK / Supervisor', 'Se reemplaza el link anterior por uno nuevo en la misma gestion.'],
+    [''],
+    ['REGLAS PRACTICAS'],
+    ['1. No borrar filas ya gestionadas: si una gestion existe en TMK, se sigue sobre esa misma fila.'],
+    ['2. Si cambia un dato clave como DNI o telefono, corregir primero en SOLICITUDES y luego regenerar si hace falta.'],
+    ['3. Si el cliente ya respondio, no volver a enviar salvo que Supervisor indique regenerar link.'],
+    ['4. Usar SOLICITUDES para cargar y TMK para seguimiento.'],
+    ['5. Respuestas_Scoring queda como respaldo de respuestas y scoring.'],
+    [''],
+    ['MENU RECOMENDADO'],
+    ['Preparar planilla: usar al inicio o si se agrego una hoja nueva.'],
+    ['Generar desde solicitudes: crea links pendientes y sube altas a TMK.'],
+    ['Actualizar TMK y rechazados: refresca estados, decisiones y vistas operativas.'],
+    ['Abrir llamada fila seleccionada: carga scoring telefonico sobre la fila activa.'],
+    ['Regenerar link fila seleccionada: crea un link nuevo para repetir validacion.'],
+    ['Ver instrucciones: abre esta misma hoja.']
+  ];
+
+  sheet.getRange(1, 1, rows.length, 4).setValues(rows);
+  sheet.setFrozenRows(3);
+  sheet.setColumnWidths(1, 4, 220);
+  sheet.setColumnWidth(2, 480);
+  sheet.getRange('A1:D1').merge();
+  sheet.getRange('A1').setFontSize(15).setFontWeight('bold').setBackground('#0f172a').setFontColor('#ffffff').setHorizontalAlignment('center');
+  sheet.getRange('A3:D3').setFontWeight('bold').setBackground('#e5efe8').setFontColor('#1f3b2f');
+  sheet.getRange(4, 1, 7, 4).setBackground('#f8fafc');
+  sheet.getRange(12, 1, 1, 4).merge();
+  sheet.getRange('A12').setFontWeight('bold').setBackground('#fef3c7').setFontColor('#7c5a10');
+  sheet.getRange(13, 1, 5, 4).mergeAcross();
+  sheet.getRange(19, 1, 1, 4).merge();
+  sheet.getRange('A19').setFontWeight('bold').setBackground('#dbeafe').setFontColor('#1d4ed8');
+  sheet.getRange(20, 1, 6, 4).mergeAcross();
+  sheet.getDataRange().setWrap(true).setVerticalAlignment('middle');
+  return sheet;
+}
+
+function verInstruccionesOperativasDesdeMenu() {
+  var sheet = ensureInstruccionesSheet_();
+  sheet.activate();
+  return 'Hoja INSTRUCCIONES abierta.';
+}
+
+function setupInicial() {
+  ensureSheets();
+  ensureHeaders();
+  ensureInstruccionesSheet_();
+  if (typeof actualizarCatalogoPreguntas === 'function') {
+    try { actualizarCatalogoPreguntas(); } catch (e) { Logger.log(e); }
+  }
+  actualizarHojasTMK();
+  return 'Planilla preparada con Solicitudes, TMK, Respuestas, Log e Instrucciones.';
+}
+
+function onOpen() {
+  try {
+    SpreadsheetApp.getUi()
+      .createMenu('Encuestas Autosol')
+      .addItem('Preparar planilla', 'setupInicialDesdeMenu')
+      .addItem('Generar desde solicitudes', 'procesarNuevosIngresosDesdeMenu')
+      .addItem('Actualizar TMK y rechazados', 'actualizarHojasTMKDesdeMenu')
+      .addItem('Abrir llamada fila seleccionada', 'abrirLlamadaModalDesdeSeleccionMenu')
+      .addItem('Regenerar link fila seleccionada', 'regenerarLinkFilaSeleccionadaDesdeMenu')
+      .addSeparator()
+      .addItem('Ver instrucciones', 'verInstruccionesOperativasDesdeMenu')
+      .addToUi();
+  } catch (e) {
+    Logger.log('No se pudo crear el menu final: ' + e);
+  }
+}
+
+function ensureInstruccionesSheet_() {
+  var sheet = getSheet('INSTRUCCIONES');
+  sheet.clear();
+
+  var rows = [
+    ['AUTOSOL - GUIA OPERATIVA', '', '', ''],
+    ['', '', '', ''],
+    ['ETAPA', 'QUE HACER', 'QUIEN', 'RESULTADO ESPERADO'],
+    ['1. Carga inicial', 'Cargar cada cliente nuevo en SOLICITUDES JUJUY o SOLICITUDES SALTA. Completar solo datos necesarios.', 'Recepcion', 'Queda lista la fila para generar link y seguimiento.'],
+    ['2. Generar gestion', 'Marcar la casilla GENERAR o usar el menu Generar desde solicitudes.', 'Recepcion / Administracion', 'Se crea TOKEN, LINK_ENCUESTA, ENVIAR WPP y la fila correspondiente en TMK.'],
+    ['3. Envio al cliente', 'Enviar el WhatsApp desde la columna ENVIAR WPP o copiar el link si se comparte por otro medio.', 'Recepcion / TMK', 'El cliente recibe su acceso personalizado.'],
+    ['4. Respuesta web', 'Si el cliente completa la encuesta web, el sistema guarda respuestas, scoring y decision.', 'Cliente', 'Se actualiza SOLICITUDES, Respuestas_Scoring y TMK.'],
+    ['5. Gestion telefonica', 'Si no responde web o requiere contacto, trabajar la fila desde TMK y usar Abrir llamada fila seleccionada.', 'TMK', 'Se completa scoring por llamada sobre la misma gestion.'],
+    ['6. Rechazados', 'Si DECISION_FINAL queda RECHAZADO o REVISAR, usar Actualizar TMK y rechazados para refrescar la vista operativa.', 'TMK / Supervisor', 'La gestion queda visible para seguimiento y correccion.'],
+    ['7. Regenerar link', 'Si hace falta repetir encuesta por rechazo o error, usar Regenerar link fila seleccionada.', 'TMK / Supervisor', 'Se reemplaza el link anterior por uno nuevo en la misma gestion.'],
+    ['', '', '', ''],
+    ['REGLAS PRACTICAS', '', '', ''],
+    ['1. No borrar filas ya gestionadas', 'Si una gestion existe en TMK, se sigue sobre esa misma fila.', '', ''],
+    ['2. Si cambia un dato clave', 'Corregir primero en SOLICITUDES y luego regenerar si hace falta.', '', ''],
+    ['3. Si el cliente ya respondio', 'No volver a enviar salvo que Supervisor indique regenerar link.', '', ''],
+    ['4. Uso operativo', 'Usar SOLICITUDES para cargar y TMK para seguimiento.', '', ''],
+    ['5. Respaldo', 'Respuestas_Scoring queda como respaldo de respuestas y scoring.', '', ''],
+    ['', '', '', ''],
+    ['MENU RECOMENDADO', '', '', ''],
+    ['Preparar planilla', 'Usar al inicio o si se agrego una hoja nueva.', '', ''],
+    ['Generar desde solicitudes', 'Crea links pendientes y sube altas a TMK.', '', ''],
+    ['Actualizar TMK y rechazados', 'Refresca estados, decisiones y vistas operativas.', '', ''],
+    ['Abrir llamada fila seleccionada', 'Carga scoring telefonico sobre la fila activa.', '', ''],
+    ['Regenerar link fila seleccionada', 'Crea un link nuevo para repetir validacion.', '', ''],
+    ['Ver instrucciones', 'Abre esta misma hoja.', '', '']
+  ];
+
+  sheet.getRange(1, 1, rows.length, 4).setValues(rows);
+  sheet.setFrozenRows(3);
+  sheet.setColumnWidths(1, 4, 220);
+  sheet.setColumnWidth(2, 480);
+  sheet.getRange('A1:D1').merge();
+  sheet.getRange('A1').setFontSize(15).setFontWeight('bold').setBackground('#0f172a').setFontColor('#ffffff').setHorizontalAlignment('center');
+  sheet.getRange('A3:D3').setFontWeight('bold').setBackground('#e5efe8').setFontColor('#1f3b2f');
+  sheet.getRange(4, 1, 7, 4).setBackground('#f8fafc');
+  sheet.getRange('A12:D12').merge();
+  sheet.getRange('A12').setFontWeight('bold').setBackground('#fef3c7').setFontColor('#7c5a10');
+  sheet.getRange('A19:D19').merge();
+  sheet.getRange('A19').setFontWeight('bold').setBackground('#dbeafe').setFontColor('#1d4ed8');
+  sheet.getDataRange().setWrap(true).setVerticalAlignment('middle');
+  return sheet;
+}
