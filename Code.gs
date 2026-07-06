@@ -3670,3 +3670,53 @@ function doPost(e) {
     return jsonResponse({ status: "ERROR", message: "Excepcion en servidor: " + err.toString() });
   }
 }
+
+/**************************************************************
+ * OVERRIDE FINAL - LLAMADA EN VENTANA FLOTANTE
+ **************************************************************/
+
+function onOpen() {
+  try {
+    SpreadsheetApp.getUi()
+      .createMenu("Encuestas Autosol")
+      .addItem("Preparar planilla", "setupInicialDesdeMenu")
+      .addItem("Generar desde solicitudes", "procesarNuevosIngresosDesdeMenu")
+      .addItem("Actualizar TMK y rechazados", "actualizarHojasTMKDesdeMenu")
+      .addItem("Abrir llamada en ventana", "abrirLlamadaModalDesdeSeleccionMenu")
+      .addItem("Regenerar link fila seleccionada", "regenerarLinkFilaSeleccionadaDesdeMenu")
+      .addItem("Reparar links existentes", "regenerarLinksExistentesDesdeMenu")
+      .addToUi();
+  } catch (e) {
+    Logger.log("No se pudo crear el menu modal: " + e);
+  }
+}
+
+function abrirLlamadaModalDesdeSeleccionMenu() {
+  mostrarToast(abrirLlamadaModalDesdeSeleccion_());
+}
+
+function abrirLlamadaModalDesdeSeleccion_() {
+  ensureSheets();
+  ensureHeaders();
+
+  var token = obtenerTokenDesdeFilaSeleccionada_();
+  if (!token) return "No se pudo obtener el token de la fila seleccionada.";
+
+  var template = HtmlService.createTemplateFromFile("LlamadaSidebar");
+  template.token = token;
+  var html = template.evaluate()
+    .setTitle("Scoring por llamada")
+    .setWidth(760)
+    .setHeight(840);
+
+  SpreadsheetApp.getUi().showModalDialog(html, "Scoring por llamada");
+  return "Ventana de llamada abierta.";
+}
+
+function abrirLlamadaFilaSeleccionadaDesdeMenu() {
+  return abrirLlamadaModalDesdeSeleccionMenu();
+}
+
+function abrirLlamadaSidebarDesdeSeleccion_() {
+  return abrirLlamadaModalDesdeSeleccion_();
+}
