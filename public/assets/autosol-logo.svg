@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 140" role="img" aria-labelledby="title desc">
+  <title id="title">Volkswagen Autosol</title>
+  <desc id="desc">Marca Autosol con isotipo Volkswagen y texto, sin fondo</desc>
+  <rect width="760" height="140" fill="none"/>
+  <g fill="none" stroke="#232b5d" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="70" cy="70" r="52" stroke-width="6"/>
+    <path d="M34 38 L56 82 L70 54 L84 82 L106 38" stroke-width="8"/>
+    <path d="M34 102 L56 58 L70 86 L84 58 L106 102" stroke-width="8"/>
+  </g>
+  <rect x="152" y="28" width="6" height="84" fill="#232b5d"/>
+  <text x="188" y="98" fill="#232b5d" font-family="Inter, Arial, sans-serif" font-size="84" font-weight="800" letter-spacing="-2">Autosol</text>
+</svg>
