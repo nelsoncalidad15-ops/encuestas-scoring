@@ -3720,3 +3720,165 @@ function abrirLlamadaFilaSeleccionadaDesdeMenu() {
 function abrirLlamadaSidebarDesdeSeleccion_() {
   return abrirLlamadaModalDesdeSeleccion_();
 }
+
+/**************************************************************
+ * OVERRIDE FINAL - CONTEXTO COMPLETO PARA LLAMADA INTERNA
+ **************************************************************/
+
+function obtenerContextoFilaSeleccionada_() {
+  var activeSheet = SpreadsheetApp.getActiveSheet();
+  var activeRange = SpreadsheetApp.getActiveRange();
+  var rowIndex = activeRange ? activeRange.getRow() : 0;
+  if (!activeSheet || rowIndex < 2) return null;
+
+  var sheetName = activeSheet.getName();
+  var token = "";
+  var idCliente = "";
+  var baseName = "";
+
+  if (sheetName === "SOLICITUDES JUJUY" || sheetName === "SOLICITUDES SALTA") {
+    var config = getConfigPorBase_(sheetName);
+    if (!config) return null;
+    procesarFilaSolicitudRapida_(activeSheet, rowIndex, config);
+    var mapSol = getHeaderMapFlexible_(activeSheet);
+    var rowSol = activeSheet.getRange(rowIndex, 1, 1, activeSheet.getLastColumn()).getValues()[0];
+    token = getVal_(rowSol, mapSol, ALIASES.TOKEN);
+    idCliente = getVal_(rowSol, mapSol, ALIASES.ID_CLIENTE);
+    baseName = sheetName;
+  } else {
+    var map = getHeaderMapFlexible_(activeSheet);
+    var row = activeSheet.getRange(rowIndex, 1, 1, activeSheet.getLastColumn()).getValues()[0];
+    token = getVal_(row, map, "TOKEN");
+    idCliente = getVal_(row, map, "ID_CLIENTE");
+
+    var origen = buscarSolicitudPorIdToken_(idCliente, token);
+    if (origen) {
+      baseName = origen.baseName;
+      token = token || getVal_(origen.values, origen.headerMap, ALIASES.TOKEN);
+      idCliente = idCliente || getVal_(origen.values, origen.headerMap, ALIASES.ID_CLIENTE);
+    }
+  }
+
+  return {
+    token: token ? String(token).trim() : "",
+    idCliente: idCliente ? String(idCliente).trim() : "",
+    activeSheetName: sheetName,
+    activeRow: rowIndex,
+    baseName: baseName
+  };
+}
+
+function buscarFilaDesdeContexto_(context) {
+  context = context || {};
+  var token = String(context.token || "").trim();
+  var idCliente = String(context.idCliente || "").trim();
+  var baseName = String(context.baseName || "").trim();
+
+  if (token) {
+    var byToken = buscarFilaPorToken(token);
+    if (byToken) return byToken;
+  }
+
+  if (idCliente || token) {
+    var byId = buscarSolicitudPorIdToken_(idCliente, token);
+    if (byId) return byId;
+  }
+
+  if (baseName && context.activeRow) {
+    var config = getConfigPorBase_(baseName);
+    if (config) {
+      var sheet = getSheet(config.base);
+      if (context.activeRow >= 2 && context.activeRow <= sheet.getLastRow()) {
+        return {
+          rowIndex: context.activeRow,
+          values: sheet.getRange(context.activeRow, 1, 1, sheet.getLastColumn()).getValues()[0],
+          headerMap: getHeaderMapFlexible_(sheet),
+          sheet: sheet,
+          baseName: config.base,
+          tmkName: config.tmk,
+          sucursal: config.sucursal
+        };
+      }
+    }
+  }
+
+  return null;
+}
+
+function abrirLlamadaModalDesdeSeleccion_() {
+  ensureSheets();
+  ensureHeaders();
+
+  var context = obtenerContextoFilaSeleccionada_();
+  if (!context || (!context.token && !context.idCliente)) return "No se pudo obtener el cliente de la fila seleccionada.";
+
+  var template = HtmlService.createTemplateFromFile("LlamadaSidebar");
+  template.context = context;
+  var html = template.evaluate().setTitle("Scoring por llamada").setWidth(760).setHeight(840);
+  SpreadsheetApp.getUi().showModalDialog(html, "Scoring por llamada");
+  return "Ventana de llamada abierta.";
+}
+
+function obtenerDatosLlamada_(context) {
+  var rowData = (typeof context === "string") ? buscarFilaPorToken(context) : buscarFilaDesdeContexto_(context);
+  if (!rowData) return { status: "TOKEN_INVALIDO", message: "No se encontro la solicitud." };
+
+  var rowValues = rowData.values;
+  var headerMap = rowData.headerMap;
+  var estadoEncuesta = String(getVal_(rowValues, headerMap, ALIASES.ESTADO_ENCUESTA) || "");
+  if (estadoEncuesta === "Respondido" || estadoEncuesta === "Scoring telefonico") {
+    return { status: "YA_RESPONDIO", message: "Esta gestion ya fue cerrada." };
+  }
+
+  var clienteSeguro = {
+    nombre: getVal_(rowValues, headerMap, ALIASES.NOMBRE),
+    modelo: getVal_(rowValues, headerMap, ALIASES.MODELO),
+    asesor: getVal_(rowValues, headerMap, ALIASES.VENDEDOR),
+    montoCuota2: getVal_(rowValues, headerMap, ALIASES.CUOTA_2),
+    medioPagoPrevisto: getVal_(rowValues, headerMap, ALIASES.TIPO_PAGO),
+    telefono: getVal_(rowValues, headerMap, ALIASES.TELEFONO),
+    solicitud: getVal_(rowValues, headerMap, ALIASES.SOLICITUD),
+    sucursal: rowData.sucursal,
+    planAuto: (analizarPlanAuto_(getVal_(rowValues, headerMap, ALIASES.MODELO)) || {}).plan || ""
+  };
+
+  var respuestas = {};
+  var tmkSheet = getSheet(rowData.tmkName);
+  var tmkMap = getHeaderMapFlexible_(tmkSheet);
+  var tmkRow = buscarFilaTMKPorIdToken_(tmkSheet, tmkMap, getVal_(rowValues, headerMap, ALIASES.ID_CLIENTE), getVal_(rowValues, headerMap, ALIASES.TOKEN));
+  if (tmkRow) {
+    var filaTmk = tmkSheet.getRange(tmkRow, 1, 1, tmkSheet.getLastColumn()).getValues()[0];
+    respuestas = construirRespuestasGuardadasDesdeRow_(filaTmk, tmkMap);
+  }
+
+  return {
+    status: "OK",
+    cliente: clienteSeguro,
+    preguntas: construirPreguntasFrontend_(clienteSeguro),
+    respuestas: respuestas
+  };
+}
+
+function guardarLlamadaInterna_(context, respuestas) {
+  var rowData = (typeof context === "string") ? buscarFilaPorToken(context) : buscarFilaDesdeContexto_(context);
+  if (!rowData) {
+    registrarLog("", "", "TOKEN_INVALIDO", "No se encontro solicitud al guardar llamada interna", "guardarLlamadaInterna");
+    return { status: "TOKEN_INVALIDO", message: "No se encontro la solicitud." };
+  }
+
+  var rowValues = rowData.values;
+  var headerMap = rowData.headerMap;
+  var estadoEncuesta = String(getVal_(rowValues, headerMap, ALIASES.ESTADO_ENCUESTA) || "");
+  if (estadoEncuesta === "Respondido" || estadoEncuesta === "Scoring telefonico") {
+    return { status: "YA_RESPONDIO", message: "Esta gestion ya fue cerrada." };
+  }
+
+  var scoring = calcularScoring(respuestas);
+  var clienteInfo = construirClienteInfoDesdeRowData_(rowData);
+  guardarRespuestaScoring(clienteInfo, respuestas, scoring);
+  actualizarSolicitudConScoring_(rowData, scoring, "TELEFONICO");
+  volcarRespuestaEnTMK_(rowData, respuestas, scoring, "TELEFONICO");
+  actualizarVistasTMK_();
+  registrarLog(clienteInfo.token || "", clienteInfo.dniHash || "", "OK", "Llamada procesada: " + scoring.resultado, "guardarLlamadaInterna");
+  return { status: "OK", scoringResult: scoring.resultado };
+}
