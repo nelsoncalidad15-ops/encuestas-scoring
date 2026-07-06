@@ -1,0 +1,440 @@
+<!doctype html>
+<html>
+  <head>
+    <base target="_top">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+      :root {
+        --bg: #f5f5f0;
+        --card: #ffffff;
+        --border: #e0e0d6;
+        --text: #2d2d2a;
+        --muted: #8e8e85;
+        --primary: #5a5a40;
+        --primary-dark: #4c4c37;
+        --ok: #166534;
+        --error-bg: #fef2f2;
+        --error-border: #fecaca;
+        --error-text: #b91c1c;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+      .wrap { padding: 14px; }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        padding: 14px;
+        margin-bottom: 12px;
+      }
+      .title {
+        font-size: 22px;
+        line-height: 1.1;
+        margin: 4px 0 8px;
+        font-weight: 700;
+      }
+      .eyebrow {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: .18em;
+        color: var(--primary);
+        font-weight: 700;
+      }
+      .muted { color: var(--muted); font-size: 12px; }
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+      .field { margin-bottom: 14px; }
+      label.block, .question {
+        display: block;
+        font-size: 13px;
+        font-weight: 700;
+        margin-bottom: 6px;
+      }
+      input[type="text"], input[type="date"], textarea {
+        width: 100%;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 10px 12px;
+        font-size: 13px;
+        background: #fafaf7;
+      }
+      textarea { min-height: 88px; resize: vertical; }
+      .radios {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+      .radio-pill {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 10px;
+        background: #fff;
+        cursor: pointer;
+        font-size: 13px;
+      }
+      .info {
+        border: 1px solid var(--border);
+        background: #fafaf7;
+        border-radius: 12px;
+        padding: 12px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .hidden { display: none !important; }
+      .error {
+        border: 1px solid var(--error-border);
+        background: var(--error-bg);
+        color: var(--error-text);
+        border-radius: 12px;
+        padding: 10px 12px;
+        font-size: 12px;
+        margin-bottom: 10px;
+      }
+      .actions {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 14px;
+      }
+      button {
+        border: 0;
+        border-radius: 12px;
+        background: var(--primary);
+        color: #fff;
+        padding: 11px 16px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      button:disabled { opacity: .7; cursor: not-allowed; }
+      .success {
+        text-align: center;
+        padding: 26px 8px;
+      }
+      .success h3 {
+        margin: 8px 0;
+        font-size: 22px;
+      }
+      .divider {
+        height: 1px;
+        background: var(--border);
+        margin: 14px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div id="errorBox" class="error hidden"></div>
+
+      <div id="loading" class="card">
+        <div class="eyebrow">Modo llamada</div>
+        <div class="title">Cargando ficha...</div>
+        <div class="muted">Estamos preparando la informacion del cliente.</div>
+      </div>
+
+      <div id="formView" class="hidden">
+        <div class="card">
+          <div class="eyebrow">Modo llamada</div>
+          <div class="title">Scoring interno</div>
+          <div class="muted">Este formulario impacta directamente en la misma fila de TMK.</div>
+          <div class="divider"></div>
+          <div class="grid">
+            <div><strong>Cliente:</strong> <span id="clientName">-</span></div>
+            <div><strong>Modelo:</strong> <span id="clientModel">-</span></div>
+            <div><strong>Vendedor:</strong> <span id="clientAsesor">-</span></div>
+            <div><strong>Solicitud:</strong> <span id="clientSolicitud">-</span></div>
+            <div><strong>Sucursal:</strong> <span id="clientSucursal">-</span></div>
+            <div><strong>Cuota 2:</strong> <span id="clientCuota2">-</span></div>
+          </div>
+        </div>
+
+        <form id="callForm" class="card">
+          <div class="field">
+            <div id="q1Text" class="question"></div>
+            <div class="radios">
+              <label class="radio-pill"><input type="radio" name="q1" value="Si"> Si</label>
+              <label class="radio-pill"><input type="radio" name="q1" value="No"> No</label>
+            </div>
+          </div>
+
+          <div class="field">
+            <div id="q2Text" class="question"></div>
+            <div class="radios">
+              <label class="radio-pill"><input type="radio" name="q2" value="Si"> Si</label>
+              <label class="radio-pill"><input type="radio" name="q2" value="No"> No</label>
+            </div>
+          </div>
+
+          <div id="q3Wrap" class="field">
+            <div id="q3Text" class="question"></div>
+            <div class="radios">
+              <label class="radio-pill"><input type="radio" name="q3" value="Si"> Si</label>
+              <label class="radio-pill"><input type="radio" name="q3" value="No"> No</label>
+            </div>
+          </div>
+
+          <div class="field">
+            <div id="q4Text" class="question"></div>
+            <div class="radios">
+              <label class="radio-pill"><input type="radio" name="q4" value="Si"> Si</label>
+              <label class="radio-pill"><input type="radio" name="q4" value="No"> No</label>
+            </div>
+          </div>
+
+          <div class="field">
+            <label id="q4aLabel" class="block" for="q4a"></label>
+            <input id="q4a" type="text">
+          </div>
+
+          <div class="field">
+            <label id="q5Label" class="block" for="q5"></label>
+            <input id="q5" type="text">
+          </div>
+
+          <div class="field">
+            <div id="q5aText" class="question"></div>
+            <div class="radios">
+              <label class="radio-pill"><input type="radio" name="q5a" value="Si"> Si</label>
+              <label class="radio-pill"><input type="radio" name="q5a" value="No"> No</label>
+            </div>
+          </div>
+
+          <div class="info">La permanencia minima del debito automatico es hasta cuota 6.</div>
+
+          <div class="field">
+            <label id="q5bLabel" class="block" for="q5b"></label>
+            <input id="q5b" type="date">
+          </div>
+
+          <div class="field">
+            <label id="q6Label" class="block" for="q6"></label>
+            <input id="q6" type="text">
+          </div>
+
+          <div class="field">
+            <div id="q7Text" class="question"></div>
+            <div class="radios">
+              <label class="radio-pill"><input type="radio" name="q7" value="Si"> Si</label>
+              <label class="radio-pill"><input type="radio" name="q7" value="No"> No</label>
+            </div>
+          </div>
+
+          <div id="q7aWrap" class="field hidden">
+            <label id="q7aLabel" class="block" for="q7a"></label>
+            <input id="q7a" type="text">
+          </div>
+
+          <div class="field">
+            <div id="q8Text" class="question"></div>
+            <div class="radios">
+              <label class="radio-pill"><input type="radio" name="q8" value="Redes sociales"> Redes</label>
+              <label class="radio-pill"><input type="radio" name="q8" value="Salon"> Salon</label>
+              <label class="radio-pill"><input type="radio" name="q8" value="TV"> TV</label>
+              <label class="radio-pill"><input type="radio" name="q8" value="Radio"> Radio</label>
+              <label class="radio-pill"><input type="radio" name="q8" value="Referido"> Referido</label>
+              <label class="radio-pill"><input type="radio" name="q8" value="WhatsApp"> WhatsApp</label>
+              <label class="radio-pill"><input type="radio" name="q8" value="Otro"> Otro</label>
+            </div>
+          </div>
+
+          <div class="field">
+            <div id="q9Text" class="question"></div>
+            <div class="radios">
+              <label class="radio-pill"><input type="radio" name="q9" value="Si"> Si</label>
+              <label class="radio-pill"><input type="radio" name="q9" value="No"> No</label>
+            </div>
+          </div>
+
+          <div class="field">
+            <label id="q10Label" class="block" for="q10"></label>
+            <textarea id="q10"></textarea>
+            <div id="q10Help" class="muted hidden">Este campo es obligatorio si solicita recontacto.</div>
+          </div>
+
+          <div class="actions">
+            <button id="saveBtn" type="submit">Guardar llamada</button>
+          </div>
+        </form>
+      </div>
+
+      <div id="successView" class="card hidden success">
+        <div class="eyebrow">Listo</div>
+        <h3>Llamada guardada</h3>
+        <div class="muted">La fila de TMK ya fue actualizada con el nuevo scoring.</div>
+      </div>
+    </div>
+
+    <script>
+      const TOKEN = <?= JSON.stringify(token) ?>;
+      let currentData = null;
+
+      const $ = (id) => document.getElementById(id);
+
+      function showError(message) {
+        const box = $("errorBox");
+        box.textContent = message || "Error inesperado.";
+        box.classList.remove("hidden");
+      }
+
+      function hideError() {
+        $("errorBox").classList.add("hidden");
+      }
+
+      function setText(id, value) {
+        const el = $(id);
+        if (el) el.textContent = value || "-";
+      }
+
+      function setQuestionConfig(preguntas) {
+        const map = preguntas || {};
+        if (map.q1) setText("q1Text", map.q1.pregunta);
+        if (map.q2) setText("q2Text", map.q2.pregunta);
+        if (map.q3) setText("q3Text", map.q3.pregunta);
+        if (map.q4) setText("q4Text", map.q4.pregunta);
+        if (map.q4a) setText("q4aLabel", map.q4a.pregunta);
+        if (map.q5) setText("q5Label", map.q5.pregunta);
+        if (map.q5a) setText("q5aText", map.q5a.pregunta);
+        if (map.q5b) setText("q5bLabel", map.q5b.pregunta);
+        if (map.q6) setText("q6Label", map.q6.pregunta);
+        if (map.q7) setText("q7Text", map.q7.pregunta);
+        if (map.q7a) setText("q7aLabel", map.q7a.pregunta);
+        if (map.q8) setText("q8Text", map.q8.pregunta);
+        if (map.q9) setText("q9Text", map.q9.pregunta);
+        if (map.q10) setText("q10Label", map.q10.pregunta);
+        $("q3Wrap").classList.toggle("hidden", !map.q3);
+      }
+
+      function setRadioValue(name, value) {
+        if (!value) return;
+        const radio = document.querySelector(`input[name="${name}"][value="${value}"]`);
+        if (radio) {
+          radio.checked = true;
+          radio.dispatchEvent(new Event("change"));
+        }
+      }
+
+      function fillData(data) {
+        currentData = data;
+        setText("clientName", data.cliente.nombre);
+        setText("clientModel", data.cliente.modelo);
+        setText("clientAsesor", data.cliente.asesor);
+        setText("clientSolicitud", data.cliente.solicitud);
+        setText("clientSucursal", data.cliente.sucursal);
+        setText("clientCuota2", data.cliente.montoCuota2);
+        setQuestionConfig(data.preguntas);
+
+        const respuestas = data.respuestas || {};
+        ["q1","q2","q3","q4","q5a","q7","q8","q9"].forEach((key) => setRadioValue(key, respuestas[key] || ""));
+        $("q4a").value = respuestas.q4a || "";
+        $("q5").value = respuestas.q5 || "";
+        $("q5b").value = respuestas.q5b || "";
+        $("q6").value = respuestas.q6 || data.cliente.asesor || "";
+        $("q7a").value = respuestas.q7a || "";
+        $("q10").value = respuestas.q10 || "";
+      }
+
+      function radioValue(name) {
+        const checked = document.querySelector(`input[name="${name}"]:checked`);
+        return checked ? checked.value : "";
+      }
+
+      function validateForm() {
+        const q3Visible = !$("q3Wrap").classList.contains("hidden");
+        if (!radioValue("q1") || !radioValue("q2") || !radioValue("q4")) return false;
+        if (q3Visible && !radioValue("q3")) return false;
+        if (radioValue("q4") === "Si" && !$("q4a").value.trim()) return false;
+        if (!$("q5").value.trim() || !radioValue("q5a") || !$("q5b").value.trim()) return false;
+        if (!$("q6").value.trim() || !radioValue("q7") || !radioValue("q8") || !radioValue("q9")) return false;
+        if (radioValue("q7") === "Si" && !$("q7a").value.trim()) return false;
+        if (radioValue("q9") === "Si" && !$("q10").value.trim()) return false;
+        return true;
+      }
+
+      function buildRespuestas() {
+        return {
+          q1: radioValue("q1"),
+          q2: radioValue("q2"),
+          q3: radioValue("q3"),
+          q4: radioValue("q4"),
+          q4a: $("q4a").value.trim(),
+          q5: $("q5").value.trim(),
+          q5a: radioValue("q5a"),
+          q5b: $("q5b").value.trim(),
+          q6: $("q6").value.trim(),
+          q7: radioValue("q7"),
+          q7a: $("q7a").value.trim(),
+          q8: radioValue("q8"),
+          q9: radioValue("q9"),
+          q10: $("q10").value.trim(),
+        };
+      }
+
+      function toggleConditionals() {
+        $("q7aWrap").classList.toggle("hidden", radioValue("q7") !== "Si");
+        $("q10Help").classList.toggle("hidden", radioValue("q9") !== "Si");
+      }
+
+      document.addEventListener("change", (event) => {
+        if (["q7", "q9"].includes(event.target.name)) toggleConditionals();
+      });
+
+      $("callForm").addEventListener("submit", (event) => {
+        event.preventDefault();
+        hideError();
+        if (!validateForm()) {
+          showError("Complete los campos obligatorios antes de guardar.");
+          return;
+        }
+
+        const btn = $("saveBtn");
+        btn.disabled = true;
+        btn.textContent = "Guardando...";
+
+        google.script.run
+          .withSuccessHandler((result) => {
+            btn.disabled = false;
+            btn.textContent = "Guardar llamada";
+            if (!result || result.status !== "OK") {
+              showError((result && result.message) || "No se pudo guardar la llamada.");
+              return;
+            }
+            $("formView").classList.add("hidden");
+            $("successView").classList.remove("hidden");
+          })
+          .withFailureHandler((error) => {
+            btn.disabled = false;
+            btn.textContent = "Guardar llamada";
+            showError(error && error.message ? error.message : "No se pudo guardar la llamada.");
+          })
+          .guardarLlamadaSidebar(TOKEN, buildRespuestas());
+      });
+
+      google.script.run
+        .withSuccessHandler((data) => {
+          if (!data || data.status !== "OK") {
+            showError((data && data.message) || "No se pudo cargar la ficha.");
+            return;
+          }
+          $("loading").classList.add("hidden");
+          $("formView").classList.remove("hidden");
+          fillData(data);
+          toggleConditionals();
+        })
+        .withFailureHandler((error) => {
+          showError(error && error.message ? error.message : "No se pudo cargar la ficha.");
+        })
+        .cargarLlamadaSidebar(TOKEN);
+    </script>
+  </body>
+</html>
