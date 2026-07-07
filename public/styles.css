@@ -129,31 +129,69 @@
   }
 
   #survey-card {
-    border-radius: 1.5rem;
+    border-radius: 1.35rem;
     box-shadow: 0 20px 45px rgba(45, 45, 42, 0.08);
   }
 
   #progress-container {
-    position: sticky;
-    top: 57px;
-    z-index: 20;
-    backdrop-filter: blur(10px);
+    position: relative;
+    top: 0;
+    z-index: 1;
+    backdrop-filter: none;
+    padding: 0.9rem 1rem 0.8rem;
+  }
+
+  #progress-container > div:first-child {
+    gap: 0.75rem;
+    align-items: flex-start;
+  }
+
+  #step-title {
+    max-width: 58%;
+    line-height: 1.35;
+  }
+
+  #step-counter {
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  #survey-questions-container {
+    overflow: visible;
+  }
+
+  #survey-questions-container .rounded-2xl {
+    border-radius: 1.1rem;
+  }
+
+  #step-panel-2 > .rounded-2xl .grid {
+    grid-template-columns: 1fr;
+    gap: 0.55rem;
+  }
+
+  #step-panel-2 > .rounded-2xl span {
+    display: inline;
+    word-break: break-word;
   }
 
   #step-actions {
+    position: sticky;
+    bottom: 0;
     margin-left: -1rem;
     margin-right: -1rem;
     margin-bottom: -1rem;
     padding: 0.9rem 1rem calc(0.9rem + env(safe-area-inset-bottom));
     border-top: 1px solid var(--border);
-    background: rgba(255, 255, 255, 0.96);
+    background: rgba(255, 255, 255, 0.98);
     backdrop-filter: blur(14px);
   }
 
-  #btn-nav-prev,
-  #btn-nav-next,
-  #btn-validate-submit {
+  #step-actions button {
     min-height: 52px;
+  }
+
+  #btn-nav-prev {
+    min-width: 4.6rem;
   }
 
   #btn-nav-next {
@@ -167,9 +205,9 @@
   }
 
   .chip-option-small {
-    padding: 0.88rem 0.7rem;
-    font-size: 0.84rem;
-    line-height: 1.25;
+    padding: 0.92rem 0.8rem;
+    font-size: 0.95rem;
+    line-height: 1.3;
   }
 
   #view-step-validation h2,
@@ -180,8 +218,14 @@
 
   #survey-questions-container p.text-sm.font-semibold,
   #survey-questions-container label.block.text-sm.font-semibold {
-    font-size: 0.98rem;
+    font-size: 1rem;
     line-height: 1.45;
+  }
+
+  #survey-questions-container input,
+  #survey-questions-container textarea,
+  #survey-questions-container select {
+    font-size: 16px;
   }
 }
 

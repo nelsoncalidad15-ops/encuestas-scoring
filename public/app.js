@@ -363,6 +363,8 @@ function navigateStep(direction) {
   if (direction === 1) {
     if (!validateCurrentStep()) {
       showToast("Complete todas las preguntas obligatorias antes de continuar.");
+      const invalidField = getStepFirstInvalidField();
+      if (invalidField) scrollToField(invalidField);
       return;
     }
     if (currentStep === totalSteps) {
@@ -378,6 +380,55 @@ function navigateStep(direction) {
 function getRadioValue(name) {
   const radio = document.querySelector(`input[name="${name}"]:checked`);
   return radio ? radio.value : "";
+}
+
+function scrollToField(target) {
+  if (!target) return;
+  const header = document.querySelector("header");
+  const headerOffset = header ? header.offsetHeight : 0;
+  const top = target.getBoundingClientRect().top + window.scrollY - headerOffset - 18;
+  window.scrollTo({ top: Math.max(top, 0), behavior: "smooth" });
+  if (typeof target.focus === "function") {
+    try {
+      target.focus({ preventScroll: true });
+    } catch (_) {
+      target.focus();
+    }
+  }
+}
+
+function getStepFirstInvalidField() {
+  if (currentStep === 2) {
+    if (!getRadioValue("q1")) return document.querySelector('input[name="q1"]');
+    if (!getRadioValue("q2")) return document.querySelector('input[name="q2"]');
+    const q3Visible = !document.getElementById("q3-block")?.classList.contains("hidden");
+    if (q3Visible && !getRadioValue("q3")) return document.querySelector('input[name="q3"]');
+    const q4 = getRadioValue("q4");
+    if (!q4) return document.querySelector('input[name="q4"]');
+    if (q4 === "Si" && !document.getElementById("input-q4a").value.trim()) return document.getElementById("input-q4a");
+  }
+
+  if (currentStep === 3) {
+    if (!document.getElementById("input-q5").value.trim()) return document.getElementById("input-q5");
+    if (!getRadioValue("q5a")) return document.querySelector('input[name="q5a"]');
+    if (!document.getElementById("input-q5b").value.trim()) return document.getElementById("input-q5b");
+  }
+
+  if (currentStep === 4) {
+    if (!document.getElementById("input-q6").value.trim()) return document.getElementById("input-q6");
+    const q7 = getRadioValue("q7");
+    if (!q7) return document.querySelector('input[name="q7"]');
+    if (q7 === "Si" && !document.getElementById("input-q7a").value.trim()) return document.getElementById("input-q7a");
+    if (!getRadioValue("q8")) return document.querySelector('input[name="q8"]');
+  }
+
+  if (currentStep === 5) {
+    const q9 = getRadioValue("q9");
+    if (!q9) return document.querySelector('input[name="q9"]');
+    if (q9 === "Si" && !document.getElementById("input-q10").value.trim()) return document.getElementById("input-q10");
+  }
+
+  return null;
 }
 
 function validateCurrentStep() {
