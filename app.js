@@ -51,7 +51,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
   bindInteractiveFields();
 
-  setTimeout(() => {
+  window.requestAnimationFrame(() => {
     hideElement(viewInitialCheck);
     if (isDemoMode) {
       startDemoMode();
@@ -63,8 +63,10 @@ window.addEventListener("DOMContentLoaded", () => {
       document.getElementById("token-error-desc").textContent = "El enlace de validacion no contiene un identificador unico de cliente. Si solo quiere probar la encuesta, use ?demo=1.";
     } else {
       showElement(viewStepValidation);
+      const dniInput = document.getElementById("input-dni");
+      if (dniInput) dniInput.focus();
     }
-  }, 600);
+  });
 });
 
 function bindInteractiveFields() {
@@ -131,6 +133,14 @@ function setQuestionText(id, text) {
   if (el && text) el.textContent = text;
 }
 
+function setQuestionNote(id, text) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const value = (text || "").trim();
+  el.textContent = value;
+  el.classList.toggle("hidden", !value);
+}
+
 function setRadioOptions(name, options) {
   if (!Array.isArray(options) || options.length === 0) return;
   const radios = Array.from(document.querySelectorAll(`input[name="${name}"]`));
@@ -172,6 +182,7 @@ function applyQuestionConfig(preguntas) {
     if (map[key]?.opciones?.length) setRadioOptions(key, map[key].opciones);
   });
 
+  setQuestionNote("q2-note", map.q2?.observacion || "");
   if (q3Block) q3Block.classList.toggle("hidden", !map.q3);
 }
 
