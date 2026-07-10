@@ -121,6 +121,40 @@ function setLoadingMessageSequence(messages, intervalMs) {
   return () => clearInterval(timer);
 }
 
+function getValidationCacheKey(token, dni) {
+  return `autosol-validacion::${token || ""}::${dni || ""}`;
+}
+
+function readValidationCache(token, dni) {
+  try {
+    const raw = window.sessionStorage.getItem(getValidationCacheKey(token, dni));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && parsed.status === "OK" ? parsed : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function writeValidationCache(token, dni, payload) {
+  try {
+    window.sessionStorage.setItem(getValidationCacheKey(token, dni), JSON.stringify(payload));
+  } catch (error) {
+    console.warn("No se pudo guardar cache de validacion", error);
+  }
+}
+
+function applyValidatedClient(data, dniVal) {
+  validatedDni = dniVal;
+  clientData = data.cliente;
+  applyClientContext();
+  applyQuestionConfig(data.preguntas);
+  showElement(progressContainer);
+  showElement(surveyQuestionsContainer);
+  currentStep = 2;
+  updateStepUI();
+}
+
 function applyClientContext() {
   document.getElementById("client-badge-name").textContent = clientData?.nombre || "-";
   document.getElementById("client-badge-model").textContent = clientData?.modelo || "-";
@@ -221,14 +255,26 @@ async function validateDni(event) {
     return;
   }
 
-  hideElement(viewStepValidation);
-  showElement(viewLoadingOverlay);
+  const cachedValidation = readValidationCache(urlToken, dniVal);
+  if (cachedValidation) {
+    hideElement(viewStepValidation);
+    applyValidatedClient(cachedValidation, dniVal);
+    return;
+  }
+
+  let overlayVisible = false;
+  const overlayTimer = window.setTimeout(() => {
+    overlayVisible = true;
+    hideElement(viewStepValidation);
+    showElement(viewLoadingOverlay);
+  }, 450);
+
   setButtonLoading(btnValidateSubmit, true, "Validando...");
   const stopLoadingMessages = setLoadingMessageSequence([
     "Verificando identidad de forma segura...",
     "Buscando su validacion...",
     "Preparando su formulario..."
-  ], 1000);
+  ], 900);
 
   try {
     const response = await fetch(getBackendRoute("validarCliente"), {
@@ -238,19 +284,15 @@ async function validateDni(event) {
     });
 
     const data = await response.json();
+    window.clearTimeout(overlayTimer);
     stopLoadingMessages();
-    hideElement(viewLoadingOverlay);
+    if (overlayVisible) hideElement(viewLoadingOverlay);
     setButtonLoading(btnValidateSubmit, false, "Validar y continuar");
 
     if (data.status === "OK") {
-      validatedDni = dniVal;
-      clientData = data.cliente;
-      applyClientContext();
-      applyQuestionConfig(data.preguntas);
-      showElement(progressContainer);
-      showElement(surveyQuestionsContainer);
-      currentStep = 2;
-      updateStepUI();
+      writeValidationCache(urlToken, dniVal, data);
+      hideElement(viewStepValidation);
+      applyValidatedClient(data, dniVal);
       return;
     }
 
@@ -265,8 +307,9 @@ async function validateDni(event) {
     } else showToast(data.message || "No pudimos validar su identidad en este momento.");
   } catch (error) {
     console.error(error);
+    window.clearTimeout(overlayTimer);
     stopLoadingMessages();
-    hideElement(viewLoadingOverlay);
+    if (overlayVisible) hideElement(viewLoadingOverlay);
     setButtonLoading(btnValidateSubmit, false, "Validar y continuar");
     showElement(viewStepValidation);
     showToast("Error de conexion. Verifique su acceso a internet e intente nuevamente.");
