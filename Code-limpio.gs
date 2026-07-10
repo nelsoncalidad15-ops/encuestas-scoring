@@ -1891,6 +1891,9 @@ function construirPreguntasFrontend_(clienteSeguro) {
   }
 
   var plan = analizarPlanAuto_(clienteSeguro && clienteSeguro.modelo);
+  if (out.q2 && plan.observacionLicita) {
+    out.q2.observacion = personalizarTextoPregunta_(plan.observacionLicita, clienteSeguro);
+  }
   if (plan.cta === "-" || plan.cta === "No aplica") delete out.q3;
   return out;
 }
@@ -1905,6 +1908,8 @@ function personalizarTextoPregunta_(texto, clienteSeguro) {
     .replace(/\{\{PORCENTAJE_FINANCIADO\}\}/g, plan.financia || "un porcentaje")
     .replace(/\{\{LICITA\}\}/g, plan.licita || "ese porcentaje")
     .replace(/\{\{PORCENTAJE_LICITACION\}\}/g, plan.licita || "ese porcentaje")
+    .replace(/\{\{OBS_LICITA\}\}/g, plan.observacionLicita || "")
+    .replace(/\{\{OBSERVACION_LICITA\}\}/g, plan.observacionLicita || "")
     .replace(/\{\{CTA\}\}/g, plan.cta || "-")
     .replace(/\{\{CUOTAS_ADJUDICACION\}\}/g, plan.cta || "-")
     .replace(/\{\{CUOTA2\}\}/g, cliente.montoCuota2 || "");
@@ -3852,13 +3857,13 @@ function calcularScoring(respuestas) {
 
 function ensureConfigPlanesSheet_() {
   var sheet = getSheet('CONFIG_PLANES');
-  var headers = ['MODELO_BASE', 'COINCIDE_SI_CONTIENE', 'PLAN_AUTO', 'FINANCIA_AUTO', 'LICITA_AUTO', 'CTA_AUTO', 'MOSTRAR_Q3', 'ACTIVO'];
+  var headers = ['MODELO_BASE', 'COINCIDE_SI_CONTIENE', 'PLAN_AUTO', 'FINANCIA_AUTO', 'LICITA_AUTO', 'OBS_LICITA_AUTO', 'CTA_AUTO', 'MOSTRAR_Q3', 'ACTIVO'];
   var rows = [
-    ['AMAROK', 'AMAROK', '70/30', '70%', '30%', 'cuota 2', 'SI', 'SI'],
-    ['NIVUS', 'NIVUS', '80/20', '80%', '20%', 'cuota 8/12/24', 'SI', 'SI'],
-    ['T-CROSS', 'T-CROSS', '80/20', '80%', '20%', 'cuota 8/12/24', 'SI', 'SI'],
-    ['TERA', 'TERA', '70/30', '70%', '30%', 'cuota 8/12/24', 'SI', 'SI'],
-    ['VIRTUS', 'VIRTUS', '100%', '100%', '0%', '-', 'NO', 'SI']
+    ['AMAROK', 'AMAROK', '70/30', '70%', '30%', '', 'cuota 2', 'SI', 'SI'],
+    ['NIVUS', 'NIVUS', '80/20', '80%', '20%', '', 'cuota 8/12/24', 'SI', 'SI'],
+    ['T-CROSS', 'T-CROSS', '80/20', '80%', '20%', '', 'cuota 8/12/24', 'SI', 'SI'],
+    ['TERA', 'TERA', '70/30', '70%', '30%', '', 'cuota 8/12/24', 'SI', 'SI'],
+    ['VIRTUS', 'VIRTUS', '100%', '100%', '0%', '', '-', 'NO', 'SI']
   ];
 
   sheet.clear();
@@ -3872,9 +3877,10 @@ function ensureConfigPlanesSheet_() {
   sheet.setColumnWidth(3, 110);
   sheet.setColumnWidth(4, 110);
   sheet.setColumnWidth(5, 110);
-  sheet.setColumnWidth(6, 150);
-  sheet.setColumnWidth(7, 100);
-  sheet.setColumnWidth(8, 90);
+  sheet.setColumnWidth(6, 320);
+  sheet.setColumnWidth(7, 150);
+  sheet.setColumnWidth(8, 100);
+  sheet.setColumnWidth(9, 90);
   return sheet;
 }
 
@@ -3890,10 +3896,10 @@ function limpiarHojasObsoletas_() {
 function leerConfigPlanes_() {
   var sheet = getSheet('CONFIG_PLANES');
   if (sheet.getLastRow() < 2) ensureConfigPlanesSheet_();
-  var data = sheet.getRange(2, 1, Math.max(sheet.getLastRow() - 1, 1), 8).getValues();
+  var data = sheet.getRange(2, 1, Math.max(sheet.getLastRow() - 1, 1), 9).getValues();
   var out = [];
   for (var i = 0; i < data.length; i++) {
-    var activo = String(data[i][7] || '').toUpperCase().trim();
+    var activo = String(data[i][8] || '').toUpperCase().trim();
     if (activo === 'NO') continue;
     out.push({
       modeloBase: String(data[i][0] || '').trim(),
@@ -4033,6 +4039,7 @@ function analizarPlanAuto_(modeloRaw) {
         planAuto: configs[i].planAuto || '-',
         financia: configs[i].financia || '-',
         licita: configs[i].licita || '-',
+        observacionLicita: configs[i].observacionLicita || '',
         cta: configs[i].mostrarQ3 ? (configs[i].cta || '-') : '-',
         modeloBase: configs[i].modeloBase || modeloRaw || 'su modelo'
       };
@@ -5246,10 +5253,10 @@ function normalizarPorcentajeConfig_(valor) {
 function leerConfigPlanes_() {
   var sheet = getSheet('CONFIG_PLANES');
   if (sheet.getLastRow() < 2) ensureConfigPlanesSheet_();
-  var data = sheet.getRange(2, 1, Math.max(sheet.getLastRow() - 1, 1), 8).getValues();
+  var data = sheet.getRange(2, 1, Math.max(sheet.getLastRow() - 1, 1), 9).getValues();
   var out = [];
   for (var i = 0; i < data.length; i++) {
-    var activo = String(data[i][7] || '').toUpperCase().trim();
+    var activo = String(data[i][8] || '').toUpperCase().trim();
     if (activo === 'NO') continue;
     out.push({
       modeloBase: String(data[i][0] || '').trim(),
@@ -5257,8 +5264,9 @@ function leerConfigPlanes_() {
       planAuto: String(data[i][2] || '').trim(),
       financia: normalizarPorcentajeConfig_(data[i][3]),
       licita: normalizarPorcentajeConfig_(data[i][4]),
-      cta: String(data[i][5] || '').trim(),
-      mostrarQ3: String(data[i][6] || '').toUpperCase().trim() !== 'NO'
+      observacionLicita: String(data[i][5] || '').trim(),
+      cta: String(data[i][6] || '').trim(),
+      mostrarQ3: String(data[i][7] || '').toUpperCase().trim() !== 'NO'
     });
   }
   out.sort(function(a, b) { return b.match.length - a.match.length; });

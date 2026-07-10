@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Autosol Subscription Validator - app.js
  */
 
@@ -206,7 +206,7 @@ function setLoadingMessageSequence(messages, intervalMs) {
 }
 
 function getValidationCacheKey(token, dni) {
-  return `autosol-validacion::${token || ""}::${dni || ""}`;
+  return `autosol-validacion-v2::${token || ""}::${dni || ""}`;
 }
 
 function readValidationCache(token, dni) {
