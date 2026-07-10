@@ -63,6 +63,7 @@ window.addEventListener("DOMContentLoaded", () => {
   refreshIcons();
 
   bindInteractiveFields();
+  prewarmValidationBackend();
 
   window.requestAnimationFrame(() => {
     hideElement(viewInitialCheck);
@@ -307,6 +308,21 @@ function getBackendRoute(name) {
   const host = window.location.hostname;
   const isLocal = host === "127.0.0.1" || host === "localhost";
   return isLocal ? "/.netlify/functions/" + name : "/api/" + name;
+}
+
+function prewarmValidationBackend() {
+  if (!urlToken) return;
+  const route = getBackendRoute("prewarmValidacion");
+  try {
+    fetch(route, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: urlToken }),
+      keepalive: true,
+    }).catch(() => {});
+  } catch (error) {
+    // Es solo una aceleracion silenciosa.
+  }
 }
 
 function startDemoMode() {
