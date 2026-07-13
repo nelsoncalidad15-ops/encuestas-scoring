@@ -2202,7 +2202,7 @@ function upsertFilaTMKDesdeSolicitud_(config, baseRowIndex) {
   }
 
   var newRow = construirFilaTMK_(config, baseRow, baseMap, existing);
-  tmkSheet.getRange(targetRow, 1, 1, HEADERS_TMK.length).setValues([newRow]);
+  escribirFilaSegura_(tmkSheet, targetRow, newRow);
   restaurarRichTextFilaTMKDesdeSolicitud_(baseSheet, baseMap, baseRowIndex, tmkSheet, targetRow);
   aplicarFormatoFilaTmk_(tmkSheet, targetRow);
   return targetRow;
@@ -4323,8 +4323,8 @@ function upsertFilaRechazadosDesdeTMK_(sourceSheet, rowIndex) {
     if (targetRow) {
       rejectSheet.getRange(targetRow, 1, 1, headers.length).setValues([out]);
     } else {
-      rejectSheet.appendRow(out);
-      targetRow = rejectSheet.getLastRow();
+      targetRow = Math.max(rejectSheet.getLastRow() + 1, 2);
+      escribirFilaSegura_(rejectSheet, targetRow, out);
     }
 
     var linkColSource = getCol_(sourceMap, 'LINK_ENCUESTA');
@@ -4582,10 +4582,10 @@ function upsertFilaRechazadosDesdeContexto_(rowData, respuestas, scoring, canal)
     var out = construirFilaTmkFinalDesdeContexto_(rowData, respuestas, scoring, canal);
     var targetRow = existingRow;
     if (targetRow) {
-      rejectSheet.getRange(targetRow, 1, 1, HEADERS_TMK.length).setValues([out]);
+      escribirFilaSegura_(rejectSheet, targetRow, out);
     } else {
-      rejectSheet.appendRow(out);
-      targetRow = rejectSheet.getLastRow();
+      targetRow = Math.max(rejectSheet.getLastRow() + 1, 2);
+      escribirFilaSegura_(rejectSheet, targetRow, out);
     }
 
     var sourceMap = rowData.headerMap;
@@ -4795,6 +4795,24 @@ function mutarFilaPorCambios_(rowValues, headerMap, changes) {
   return out;
 }
 
+function escribirFilaSegura_(sheet, rowIndex, values) {
+  var width = values && values.length ? values.length : Math.max(sheet.getLastColumn(), HEADERS_TMK.length, 1);
+  var range = sheet.getRange(rowIndex, 1, 1, width);
+  try {
+    range.setValues([values]);
+  } catch (e) {
+    var mensaje = String((e && e.message) || e || '');
+    if (mensaje.toLowerCase().indexOf('validacion') === -1) throw e;
+    try {
+      range.clearDataValidations();
+      SpreadsheetApp.flush();
+      range.setValues([values]);
+    } catch (retryError) {
+      throw retryError;
+    }
+  }
+}
+
 function setRichTextCellLabelUrl_(sheet, rowIndex, colIndex, text, url) {
   if (!colIndex) return;
   var richText = SpreadsheetApp.newRichTextValue()
@@ -4837,7 +4855,7 @@ function escribirRespuestasEnFilaTMKRapidaFinal_(sheet, rowIndex, headerMap, res
     'ULTIMO_CONTACTO_TMK': new Date(),
     'FECHA_RESPUESTA_WEB': canal === 'WEB' ? new Date() : getVal_(current, headerMap, 'FECHA_RESPUESTA_WEB')
   });
-  sheet.getRange(rowIndex, 1, 1, updated.length).setValues([updated]);
+  escribirFilaSegura_(sheet, rowIndex, updated);
 }
 
 function actualizarSolicitudConScoringRapida_(rowData, scoring, canal) {
@@ -4847,7 +4865,7 @@ function actualizarSolicitudConScoringRapida_(rowData, scoring, canal) {
   var updated = mutarFilaPorCambios_(current, headerMap, {
     'ESTADO_ENCUESTA': canal === 'WEB' ? 'Respondido' : 'Scoring telefonico'
   });
-  sheet.getRange(rowData.rowIndex, 1, 1, updated.length).setValues([updated]);
+  escribirFilaSegura_(sheet, rowData.rowIndex, updated);
   rowData.values = updated;
 }
 
@@ -5042,7 +5060,7 @@ function regenerarLinkDesdeSolicitud_(rowData, config, motivo) {
       'FECHA_ULTIMO_ENVIO_WPP': '',
       'ULTIMO_CONTACTO_TMK': ''
     });
-    tmkSheet.getRange(tmkRow, 1, 1, updatedTmk.length).setValues([updatedTmk]);
+    escribirFilaSegura_(tmkSheet, tmkRow, updatedTmk);
     restaurarRichTextFilaTMKDesdeSolicitud_(sheet, headerMap, rowIndex, tmkSheet, tmkRow);
     var callCol = getCol_(tmkMap, 'ABRIR_LLAMADA');
     if (callCol) {
@@ -5227,7 +5245,7 @@ function guardarRespuestaScoringRapida_(cliente, respuestas, scoring) {
   }
 
   var targetRow = sheet.getLastRow() + 1;
-  sheet.getRange(targetRow, 1, 1, newRow.length).setValues([newRow]);
+  escribirFilaSegura_(sheet, targetRow, newRow);
 }
 
 /**************************************************************
@@ -5398,12 +5416,12 @@ function upsertIndiceOperativo_(meta) {
     });
 
     if (rowIndex >= 2) {
-      sheet.getRange(rowIndex, 1, 1, updated.length).setValues([updated]);
+      escribirFilaSegura_(sheet, rowIndex, updated);
       return rowIndex;
     }
 
     var targetRow = sheet.getLastRow() + 1;
-    sheet.getRange(targetRow, 1, 1, updated.length).setValues([updated]);
+    escribirFilaSegura_(sheet, targetRow, updated);
     return targetRow;
   } catch (e) {
     Logger.log('No se pudo upsertar INDICE_OPERATIVO: ' + e);
@@ -5599,7 +5617,7 @@ function upsertFilaTMKDesdeSolicitud_(config, baseRowIndex) {
   }
 
   var newRow = construirFilaTMK_(config, baseRow, baseMap, existing);
-  tmkSheet.getRange(targetRow, 1, 1, HEADERS_TMK.length).setValues([newRow]);
+  escribirFilaSegura_(tmkSheet, targetRow, newRow);
   restaurarRichTextFilaTMKDesdeSolicitud_(baseSheet, baseMap, baseRowIndex, tmkSheet, targetRow);
   aplicarFormatoFilaTmk_(tmkSheet, targetRow);
 
@@ -5829,7 +5847,7 @@ function regenerarLinkDesdeSolicitud_(rowData, config, motivo) {
         'FECHA_ULTIMO_ENVIO_WPP': '',
         'ULTIMO_CONTACTO_TMK': ''
       });
-      tmkSheet.getRange(tmkRow, 1, 1, updatedTmk.length).setValues([updatedTmk]);
+      escribirFilaSegura_(tmkSheet, tmkRow, updatedTmk);
       restaurarRichTextFilaTMKDesdeSolicitud_(sheet, headerMap, rowIndex, tmkSheet, tmkRow);
       var callCol = getCol_(tmkMap, 'ABRIR_LLAMADA');
       if (callCol) {
@@ -6284,7 +6302,7 @@ function escribirRespuestasEnFilaTMKRapidaFinal_(sheet, rowIndex, headerMap, res
     'ULTIMO_CONTACTO_TMK': new Date(),
     'FECHA_RESPUESTA_WEB': canal === 'WEB' ? new Date() : getVal_(current, headerMap, 'FECHA_RESPUESTA_WEB')
   });
-  sheet.getRange(rowIndex, 1, 1, updated.length).setValues([updated]);
+  escribirFilaSegura_(sheet, rowIndex, updated);
 }
 
 TMK_HIDE_HEADERS = [
