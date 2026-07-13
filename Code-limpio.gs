@@ -1,4 +1,4 @@
-﻿/**************************************************************
+/**************************************************************
  * BLOQUE FINAL - NUEVA DINAMICA SOLICITUDES + TMK
  * Pegar AL FINAL de Code.gs para reemplazar la logica de:
  * - Base_Clientes
@@ -1879,28 +1879,36 @@ function construirPreguntasFrontend_(clienteSeguro) {
   var out = {};
   if (sheet.getLastRow() < 2) return out;
 
+  var plan = analizarPlanAuto_(clienteSeguro && clienteSeguro.modelo);
   var data = sheet.getRange(2, 1, sheet.getLastRow() - 1, 10).getValues();
   for (var i = 0; i < data.length; i++) {
     var activo = String(data[i][9] || "").toUpperCase();
     var key = String(data[i][8] || "").trim();
     if (activo === "NO" || !key) continue;
     out[key] = {
-      pregunta: personalizarTextoPregunta_(String(data[i][3] || ""), clienteSeguro),
+      pregunta: personalizarTextoPregunta_(String(data[i][3] || ""), clienteSeguro, plan),
       opciones: normalizarOpcionesPregunta_(String(data[i][5] || ""))
     };
   }
 
-  var plan = analizarPlanAuto_(clienteSeguro && clienteSeguro.modelo);
   if (out.q2 && plan.observacionLicita) {
-    out.q2.observacion = personalizarTextoPregunta_(plan.observacionLicita, clienteSeguro);
+    out.q2.observacion = personalizarTextoPregunta_(plan.observacionLicita, clienteSeguro, plan);
+  }
+  if (plan.financia === "100%" && plan.licita === "0%") {
+    if (out.q1) {
+      out.q1.pregunta = "Le informamos que accedio al plan exclusivo de " + (plan.modeloBase || clienteSeguro.modelo || "su modelo") + ", con financiacion del 100% del valor del vehiculo. Lo sabia?";
+    }
+    if (out.q2) {
+      out.q2.pregunta = "Le informaron que, al estar 100% financiado, puede licitar desde la cuota 2?";
+    }
   }
   if (plan.cta === "-" || plan.cta === "No aplica") delete out.q3;
   return out;
 }
 
-function personalizarTextoPregunta_(texto, clienteSeguro) {
+function personalizarTextoPregunta_(texto, clienteSeguro, planInfo) {
   var cliente = clienteSeguro || {};
-  var plan = analizarPlanAuto_(cliente.modelo);
+  var plan = planInfo || analizarPlanAuto_(cliente.modelo);
   return String(texto || "")
     .replace(/\{\{MODELO\}\}/g, cliente.modelo || "su modelo")
     .replace(/\{\{MODELO_BASE\}\}/g, plan.modeloBase || cliente.modelo || "su modelo")
@@ -4558,6 +4566,7 @@ function upsertFilaRechazadosDesdeContexto_(rowData, respuestas, scoring, canal)
   try {
     var rejectSheet = getSheet('TMK - RECHAZADOS');
     establecerHeadersExactos_(rejectSheet, HEADERS_TMK);
+    limpiarValidacionesTMK_(rejectSheet);
 
     var rejectMap = getHeaderMapFlexible_(rejectSheet);
     var idCliente = String(getVal_(rowData.values, rowData.headerMap, ALIASES.ID_CLIENTE) || '').trim();
@@ -6091,6 +6100,7 @@ function formatearHojasTMK_() {
   }
 
   var rejectSheet = getSheet('TMK - RECHAZADOS');
+  limpiarValidacionesTMK_(rejectSheet);
   var rejectMap = getHeaderMapFlexible_(rejectSheet);
   hideHeadersIfPresent_(rejectSheet, rejectMap, TMK_HIDE_HEADERS);
 }
@@ -6219,6 +6229,7 @@ function formatearHojasTMK_() {
   }
 
   var rejectSheet = getSheet('TMK - RECHAZADOS');
+  limpiarValidacionesTMK_(rejectSheet);
   var rejectMap = getHeaderMapFlexible_(rejectSheet);
   hideHeadersIfPresent_(rejectSheet, rejectMap, TMK_HIDE_HEADERS);
 }
@@ -6368,6 +6379,7 @@ function formatearHojasTMK_() {
   }
 
   var rejectSheet = getSheet('TMK - RECHAZADOS');
+  limpiarValidacionesTMK_(rejectSheet);
   var rejectMap = getHeaderMapFlexible_(rejectSheet);
   hideHeadersIfPresent_(rejectSheet, rejectMap, TMK_HIDE_HEADERS);
 }
