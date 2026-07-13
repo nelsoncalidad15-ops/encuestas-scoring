@@ -5677,7 +5677,6 @@ function guardarEncuesta(token, dni, respuestas) {
 
   var scoring = calcularScoring(respuestas);
   var clienteInfo = construirClienteInfoDesdeRowData_(rowData);
-  guardarRespuestaScoringRapida_(clienteInfo, respuestas, scoring);
   actualizarSolicitudConScoringRapida_(rowData, scoring, 'WEB');
   volcarRespuestaEnTMKRapida_(rowData, respuestas, scoring, 'WEB');
   upsertFilaRechazadosDesdeContexto_(rowData, respuestas, scoring, 'WEB');
@@ -5693,6 +5692,7 @@ function guardarEncuesta(token, dni, respuestas) {
     decisionFinal: decisionDesdeScoring_(scoring.resultado)
   });
   SpreadsheetApp.flush();
+  guardarRespuestaScoringRapida_(clienteInfo, respuestas, scoring);
   registrarLog(token, dniHashInput, 'OK', 'Encuesta procesada: ' + scoring.resultado, 'guardarEncuestaFinalCrecimiento');
   registrarLogOperativo_('GUARDAR_ENCUESTA', { token: clienteInfo.token, idCliente: clienteInfo.idCliente, sucursal: rowData.sucursal, hoja: rowData.baseName, fila: rowData.rowIndex, resultado: scoring.resultado, detalle: 'Encuesta web guardada' });
   return jsonResponse({ status: 'OK', scoringResult: scoring.resultado });
@@ -5715,7 +5715,6 @@ function guardarLlamadaInterna_(context, respuestas) {
 
   var scoring = calcularScoring(respuestas);
   var clienteInfo = construirClienteInfoDesdeRowData_(rowData);
-  guardarRespuestaScoringRapida_(clienteInfo, respuestas, scoring);
   actualizarSolicitudConScoringRapida_(rowData, scoring, 'TELEFONICO');
   volcarRespuestaEnTMKRapida_(rowData, respuestas, scoring, 'TELEFONICO');
   upsertFilaRechazadosDesdeContexto_(rowData, respuestas, scoring, 'TELEFONICO');
@@ -5731,6 +5730,7 @@ function guardarLlamadaInterna_(context, respuestas) {
     decisionFinal: decisionDesdeScoring_(scoring.resultado)
   });
   SpreadsheetApp.flush();
+  guardarRespuestaScoringRapida_(clienteInfo, respuestas, scoring);
   registrarLog(clienteInfo.token || '', clienteInfo.dniHash || '', 'OK', 'Llamada procesada: ' + scoring.resultado, 'guardarLlamadaFinalCrecimiento');
   registrarLogOperativo_('GUARDAR_LLAMADA', { token: clienteInfo.token, idCliente: clienteInfo.idCliente, sucursal: rowData.sucursal, hoja: rowData.baseName, fila: rowData.rowIndex, resultado: scoring.resultado, detalle: 'Scoring telefonico guardado' });
   return { status: 'OK', scoringResult: scoring.resultado };
