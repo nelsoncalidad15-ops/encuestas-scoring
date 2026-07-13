@@ -253,20 +253,20 @@ function getRadioValue(name) {
 function validateForm() {
   clearValidationStateAll();
   const q3Visible = !document.getElementById("q3-block").classList.contains("hidden");
-  if (!getRadioValue("q1")) return buildValidationIssue(document.querySelector('input[name="q1"]'), "Seleccione una respuesta para la pregunta 1.");
-  if (!getRadioValue("q2")) return buildValidationIssue(document.querySelector('input[name="q2"]'), "Seleccione una respuesta para la pregunta 2.");
-  if (q3Visible && !getRadioValue("q3")) return buildValidationIssue(document.querySelector('input[name="q3"]'), "Seleccione una respuesta para la pregunta 3.");
-  if (!getRadioValue("q4")) return buildValidationIssue(document.querySelector('input[name="q4"]'), "Seleccione una respuesta para la pregunta 4.");
-  if (getRadioValue("q4") === "Si" && !document.getElementById("input-q4a").value.trim()) return buildValidationIssue(document.getElementById("input-q4a"), "Indique el monto aproximado de la cuota 2.");
-  if (!document.getElementById("input-q5").value.trim()) return buildValidationIssue(document.getElementById("input-q5"), "Complete el monto de la primera cuota.");
-  if (!getRadioValue("q5a")) return buildValidationIssue(document.querySelector('input[name="q5a"]'), "Seleccione si acepto adhesion al debito automatico.");
-  if (!document.getElementById("input-q5b").value.trim()) return buildValidationIssue(document.getElementById("input-q5b"), "Complete la fecha estimada de pago de la primera cuota.");
-  if (!document.getElementById("input-q6").value.trim()) return buildValidationIssue(document.getElementById("input-q6"), "Complete el nombre del vendedor.");
-  if (!getRadioValue("q7")) return buildValidationIssue(document.querySelector('input[name="q7"]'), "Seleccione una respuesta para la pregunta 7.");
-  if (getRadioValue("q7") === "Si" && !document.getElementById("input-q7a").value.trim()) return buildValidationIssue(document.getElementById("input-q7a"), "Indique la marca y hasta que mes pago el otro plan.");
-  if (!getRadioValue("q8")) return buildValidationIssue(document.querySelector('input[name="q8"]'), "Seleccione como conocio la propuesta.");
-  if (!getRadioValue("q9")) return buildValidationIssue(document.querySelector('input[name="q9"]'), "Seleccione si necesita que un asesor vuelva a contactarlo.");
-  if (getRadioValue("q9") === "Si" && !document.getElementById("input-q10").value.trim()) return buildValidationIssue(document.getElementById("input-q10"), "Agregue una observacion para solicitar el recontacto.");
+  if (!getRadioValue("q1")) return buildValidationIssue(document.querySelector('input[name="q1"]'), "Por favor, seleccione una respuesta para continuar.");
+  if (!getRadioValue("q2")) return buildValidationIssue(document.querySelector('input[name="q2"]'), "Por favor, seleccione una respuesta para continuar.");
+  if (q3Visible && !getRadioValue("q3")) return buildValidationIssue(document.querySelector('input[name="q3"]'), "Por favor, seleccione una respuesta para continuar.");
+  if (!getRadioValue("q4")) return buildValidationIssue(document.querySelector('input[name="q4"]'), "Por favor, seleccione una respuesta para continuar.");
+  if (getRadioValue("q4") === "Si" && !document.getElementById("input-q4a").value.trim()) return buildValidationIssue(document.getElementById("input-q4a"), "Por favor, indique el monto aproximado de la cuota 2.");
+  if (!document.getElementById("input-q5").value.trim()) return buildValidationIssue(document.getElementById("input-q5"), "Por favor, complete el monto de la primera cuota.");
+  if (!getRadioValue("q5a")) return buildValidationIssue(document.querySelector('input[name="q5a"]'), "Por favor, seleccione una respuesta para continuar.");
+  if (!document.getElementById("input-q5b").value.trim()) return buildValidationIssue(document.getElementById("input-q5b"), "Por favor, complete la fecha estimada de pago de la primera cuota.");
+  if (!document.getElementById("input-q6").value.trim()) return buildValidationIssue(document.getElementById("input-q6"), "Por favor, complete el nombre del vendedor.");
+  if (!getRadioValue("q7")) return buildValidationIssue(document.querySelector('input[name="q7"]'), "Por favor, seleccione una respuesta para continuar.");
+  if (getRadioValue("q7") === "Si" && !document.getElementById("input-q7a").value.trim()) return buildValidationIssue(document.getElementById("input-q7a"), "Por favor, indique la marca y hasta que mes pago el otro plan.");
+  if (!getRadioValue("q8")) return buildValidationIssue(document.querySelector('input[name="q8"]'), "Por favor, indique como conocio la propuesta.");
+  if (!getRadioValue("q9")) return buildValidationIssue(document.querySelector('input[name="q9"]'), "Por favor, indique si desea que un asesor vuelva a contactarlo.");
+  if (getRadioValue("q9") === "Si" && !document.getElementById("input-q10").value.trim()) return buildValidationIssue(document.getElementById("input-q10"), "Por favor, deje una observacion para que podamos ayudarlo mejor.");
   return null;
 }
 
