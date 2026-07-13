@@ -1894,7 +1894,7 @@ function construirPreguntasFrontend_(clienteSeguro) {
   if (out.q2 && plan.observacionLicita) {
     out.q2.observacion = personalizarTextoPregunta_(plan.observacionLicita, clienteSeguro, plan);
   }
-  if (plan.financia === "100%" && plan.licita === "0%") {
+  if (plan.financia === "100%") {
     if (out.q1) {
       out.q1.pregunta = "Le informamos que accedio al plan exclusivo de " + (plan.modeloBase || clienteSeguro.modelo || "su modelo") + ", con financiacion del 100% del valor del vehiculo. Lo sabia?";
     }

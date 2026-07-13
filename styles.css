@@ -185,3 +185,28 @@
   }
 }
 
+
+
+.validation-error {
+  border-color: #dc2626 !important;
+}
+
+.validation-error .chip-option,
+.validation-error .chip-option-small {
+  border-color: #dc2626;
+  background-color: rgba(220, 38, 38, 0.04);
+}
+
+.validation-error input[type="text"],
+.validation-error input[type="date"],
+.validation-error textarea {
+  border-color: #dc2626 !important;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
+}
+
+.field-error-text {
+  margin-top: 0.35rem;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: #b91c1c;
+}

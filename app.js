@@ -72,10 +72,25 @@ window.addEventListener("DOMContentLoaded", () => {
 
 function bindInteractiveFields() {
   document.querySelectorAll('input[name="q7"]').forEach((input) => {
-    input.addEventListener("change", () => toggleOtherPlanField(input.value === "Si"));
+    input.addEventListener("change", () => {
+      toggleOtherPlanField(input.value === "Si");
+      clearValidationState(input);
+      clearValidationState(document.getElementById("input-q7a"));
+    });
   });
   document.querySelectorAll('input[name="q9"]').forEach((input) => {
-    input.addEventListener("change", () => toggleObservationsRequired(input.value === "Si"));
+    input.addEventListener("change", () => {
+      toggleObservationsRequired(input.value === "Si");
+      clearValidationState(input);
+      clearValidationState(document.getElementById("input-q10"));
+    });
+  });
+  document.querySelectorAll('input[type="text"], input[type="date"], textarea').forEach((input) => {
+    input.addEventListener("input", () => clearValidationState(input));
+    input.addEventListener("change", () => clearValidationState(input));
+  });
+  document.querySelectorAll('input[type="radio"]').forEach((input) => {
+    input.addEventListener("change", () => clearValidationState(input));
   });
 }
 
@@ -95,6 +110,57 @@ function showToast(message) {
 
 function hideToast() {
   errorToast.classList.add("hidden");
+}
+
+function getValidationContainer(field) {
+  if (!field) return null;
+  let current = field;
+  while (current && current !== document.body) {
+    if (current.id === 'other-plan-conditional') return current;
+    if (current.classList?.contains('space-y-2') || current.classList?.contains('space-y-1.5')) return current;
+    current = current.parentElement;
+  }
+  return field.parentElement;
+}
+
+function clearValidationState(field) {
+  const container = getValidationContainer(field);
+  if (!container) return;
+  container.classList.remove('validation-error');
+  const error = container.querySelector('.field-error-text');
+  if (error) error.remove();
+}
+
+function clearStepValidationState(step) {
+  const panel = panels[step];
+  if (!panel) return;
+  panel.querySelectorAll('.validation-error').forEach((el) => el.classList.remove('validation-error'));
+  panel.querySelectorAll('.field-error-text').forEach((el) => el.remove());
+}
+
+function showFieldError(field, message) {
+  const container = getValidationContainer(field);
+  if (!container) return;
+  clearValidationState(field);
+  container.classList.add('validation-error');
+  const error = document.createElement('p');
+  error.className = 'field-error-text';
+  error.textContent = message;
+  container.appendChild(error);
+}
+
+function focusInvalidField(field) {
+  if (!field) return;
+  const container = getValidationContainer(field) || field;
+  container.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  window.setTimeout(() => {
+    if (field.type === 'radio') field.focus();
+    else field.focus({ preventScroll: true });
+  }, 120);
+}
+
+function buildValidationIssue(field, message) {
+  return { field, message };
 }
 
 function setButtonLoading(button, active, label) {
@@ -349,8 +415,11 @@ function navigateStep(direction) {
   hideToast();
 
   if (direction === 1) {
-    if (!validateCurrentStep()) {
-      showToast("Complete todas las preguntas obligatorias antes de continuar.");
+    const issue = validateCurrentStep();
+    if (issue) {
+      showFieldError(issue.field, issue.message);
+      focusInvalidField(issue.field);
+      showToast(issue.message);
       return;
     }
     if (currentStep === totalSteps) {
@@ -369,37 +438,43 @@ function getRadioValue(name) {
 }
 
 function validateCurrentStep() {
+  clearStepValidationState(currentStep);
+
   if (currentStep === 2) {
-    const q4 = getRadioValue("q4");
+    if (!getRadioValue("q1")) return buildValidationIssue(document.querySelector('input[name="q1"]'), "Seleccione una respuesta para la pregunta 1.");
+    if (!getRadioValue("q2")) return buildValidationIssue(document.querySelector('input[name="q2"]'), "Seleccione una respuesta para la pregunta 2.");
     const q3Visible = !document.getElementById("q3-block")?.classList.contains("hidden");
-    if (!(getRadioValue("q1") && getRadioValue("q2") && (!q3Visible || getRadioValue("q3")) && q4)) return false;
-    if (q4 === "Si" && !document.getElementById("input-q4a").value.trim()) return false;
-    return true;
+    if (q3Visible && !getRadioValue("q3")) return buildValidationIssue(document.querySelector('input[name="q3"]'), "Seleccione una respuesta para la pregunta 3.");
+    const q4 = getRadioValue("q4");
+    if (!q4) return buildValidationIssue(document.querySelector('input[name="q4"]'), "Seleccione una respuesta para la pregunta 4.");
+    if (q4 === "Si" && !document.getElementById("input-q4a").value.trim()) return buildValidationIssue(document.getElementById("input-q4a"), "Indique el monto aproximado de la cuota 2.");
+    return null;
   }
 
   if (currentStep === 3) {
-    return !!(
-      document.getElementById("input-q5").value.trim() &&
-      getRadioValue("q5a") &&
-      document.getElementById("input-q5b").value.trim()
-    );
+    if (!document.getElementById("input-q5").value.trim()) return buildValidationIssue(document.getElementById("input-q5"), "Complete el monto de la primera cuota.");
+    if (!getRadioValue("q5a")) return buildValidationIssue(document.querySelector('input[name="q5a"]'), "Seleccione si acepto adhesion al debito automatico.");
+    if (!document.getElementById("input-q5b").value.trim()) return buildValidationIssue(document.getElementById("input-q5b"), "Complete la fecha estimada de pago de la primera cuota.");
+    return null;
   }
 
   if (currentStep === 4) {
+    if (!document.getElementById("input-q6").value.trim()) return buildValidationIssue(document.getElementById("input-q6"), "Complete el nombre del vendedor.");
     const q7 = getRadioValue("q7");
-    if (!(document.getElementById("input-q6").value.trim() && q7 && getRadioValue("q8"))) return false;
-    if (q7 === "Si" && !document.getElementById("input-q7a").value.trim()) return false;
-    return true;
+    if (!q7) return buildValidationIssue(document.querySelector('input[name="q7"]'), "Seleccione una respuesta para la pregunta 7.");
+    if (q7 === "Si" && !document.getElementById("input-q7a").value.trim()) return buildValidationIssue(document.getElementById("input-q7a"), "Indique la marca y hasta que mes pago el otro plan.");
+    if (!getRadioValue("q8")) return buildValidationIssue(document.querySelector('input[name="q8"]'), "Seleccione como conocio la propuesta.");
+    return null;
   }
 
   if (currentStep === 5) {
     const q9 = getRadioValue("q9");
-    if (!q9) return false;
-    if (q9 === "Si" && !document.getElementById("input-q10").value.trim()) return false;
-    return true;
+    if (!q9) return buildValidationIssue(document.querySelector('input[name="q9"]'), "Seleccione si necesita que un asesor vuelva a contactarlo.");
+    if (q9 === "Si" && !document.getElementById("input-q10").value.trim()) return buildValidationIssue(document.getElementById("input-q10"), "Agregue una observacion para solicitar el recontacto.");
+    return null;
   }
 
-  return true;
+  return null;
 }
 
 function toggleOtherPlanField(show) {
