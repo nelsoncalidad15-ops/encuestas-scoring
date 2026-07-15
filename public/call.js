@@ -8,6 +8,8 @@ const errorToast = document.getElementById("error-toast");
 const errorToastMessage = document.getElementById("error-toast-message");
 const loadingText = document.getElementById("loading-text");
 const btnSaveCall = document.getElementById("btn-save-call");
+const successTitle = document.getElementById("success-title");
+const successDescription = document.getElementById("success-description");
 
 window.addEventListener("DOMContentLoaded", () => {
   if (window.lucide) window.lucide.createIcons();
@@ -41,6 +43,55 @@ function hideToast() {
   errorToast.classList.add("hidden");
 }
 
+function getValidationContainer(field) {
+  if (!field) return null;
+  let current = field;
+  while (current && current !== document.body) {
+    if (current.id === 'other-plan-conditional') return current;
+    if (current.classList?.contains('space-y-2') || current.classList?.contains('space-y-1.5')) return current;
+    current = current.parentElement;
+  }
+  return field.parentElement;
+}
+
+function clearValidationState(field) {
+  const container = getValidationContainer(field);
+  if (!container) return;
+  container.classList.remove('validation-error');
+  const error = container.querySelector('.field-error-text');
+  if (error) error.remove();
+}
+
+function clearValidationStateAll() {
+  document.querySelectorAll('.validation-error').forEach((el) => el.classList.remove('validation-error'));
+  document.querySelectorAll('.field-error-text').forEach((el) => el.remove());
+}
+
+function showFieldError(field, message) {
+  const container = getValidationContainer(field);
+  if (!container) return;
+  clearValidationState(field);
+  container.classList.add('validation-error');
+  const error = document.createElement('p');
+  error.className = 'field-error-text';
+  error.textContent = message;
+  container.appendChild(error);
+}
+
+function focusInvalidField(field) {
+  if (!field) return;
+  const container = getValidationContainer(field) || field;
+  container.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  window.setTimeout(() => {
+    if (field.type === 'radio') field.focus();
+    else field.focus({ preventScroll: true });
+  }, 120);
+}
+
+function buildValidationIssue(field, message) {
+  return { field, message };
+}
+
 function setButtonLoading(active, text) {
   btnSaveCall.disabled = active;
   btnSaveCall.classList.toggle("opacity-70", active);
@@ -48,17 +99,46 @@ function setButtonLoading(active, text) {
   btnSaveCall.textContent = text;
 }
 
+function setSuccessState(mode) {
+  const states = {
+    success: {
+      title: "Llamada guardada con exito",
+      description: "Las respuestas quedaron registradas en TMK y el scoring se recalculo sobre la misma fila."
+    },
+    alreadyDone: {
+      title: "Llamada ya guardada",
+      description: "Esta gestion ya estaba cerrada. No hace falta volver a cargarla porque las respuestas ya quedaron registradas."
+    }
+  };
+
+  const state = states[mode] || states.success;
+  if (successTitle) successTitle.textContent = state.title;
+  if (successDescription) successDescription.textContent = state.description;
+}
+
 function bindConditionalFields() {
   document.querySelectorAll('input[name="q7"]').forEach((input) => {
     input.addEventListener("change", () => {
       document.getElementById("other-plan-conditional").classList.toggle("hidden", input.value !== "Si");
+      clearValidationState(input);
+      clearValidationState(document.getElementById("input-q7a"));
     });
   });
 
   document.querySelectorAll('input[name="q9"]').forEach((input) => {
     input.addEventListener("change", () => {
       document.getElementById("q10-required-helper").classList.toggle("hidden", input.value !== "Si");
+      clearValidationState(input);
+      clearValidationState(document.getElementById("input-q10"));
     });
+  });
+
+  document.querySelectorAll('input[type="text"], input[type="date"], textarea').forEach((input) => {
+    input.addEventListener("input", () => clearValidationState(input));
+    input.addEventListener("change", () => clearValidationState(input));
+  });
+  document.querySelectorAll('input[type="radio"]').forEach((input) => {
+    input.addEventListener("change", () => clearValidationState(input));
   });
 
   document.getElementById("call-form").addEventListener("submit", submitCallForm);
@@ -72,6 +152,14 @@ function setText(id, value) {
 function setQuestionText(id, value) {
   const el = document.getElementById(id);
   if (el && value) el.textContent = value;
+}
+
+function setQuestionNote(id, text) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const value = (text || "").trim();
+  el.textContent = value;
+  el.classList.toggle("hidden", !value);
 }
 
 function setRadioOptions(name, options) {
@@ -111,6 +199,7 @@ function applyQuestionConfig(preguntas) {
     if (preguntas[key]?.opciones?.length) setRadioOptions(key, preguntas[key].opciones);
   });
 
+  setQuestionNote("q2-note", preguntas.q2?.observacion || "");
   q3Block.classList.toggle("hidden", !preguntas.q3);
 }
 
@@ -181,23 +270,34 @@ function getRadioValue(name) {
 }
 
 function validateForm() {
+  clearValidationStateAll();
   const q3Visible = !document.getElementById("q3-block").classList.contains("hidden");
-  if (!getRadioValue("q1") || !getRadioValue("q2") || !getRadioValue("q4")) return false;
-  if (q3Visible && !getRadioValue("q3")) return false;
-  if (getRadioValue("q4") === "Si" && !document.getElementById("input-q4a").value.trim()) return false;
-  if (!document.getElementById("input-q5").value.trim() || !getRadioValue("q5a") || !document.getElementById("input-q5b").value.trim()) return false;
-  if (!document.getElementById("input-q6").value.trim() || !getRadioValue("q7") || !getRadioValue("q8") || !getRadioValue("q9")) return false;
-  if (getRadioValue("q7") === "Si" && !document.getElementById("input-q7a").value.trim()) return false;
-  if (getRadioValue("q9") === "Si" && !document.getElementById("input-q10").value.trim()) return false;
-  return true;
+  if (!getRadioValue("q1")) return buildValidationIssue(document.querySelector('input[name="q1"]'), "Por favor, seleccione una respuesta para continuar.");
+  if (!getRadioValue("q2")) return buildValidationIssue(document.querySelector('input[name="q2"]'), "Por favor, seleccione una respuesta para continuar.");
+  if (q3Visible && !getRadioValue("q3")) return buildValidationIssue(document.querySelector('input[name="q3"]'), "Por favor, seleccione una respuesta para continuar.");
+  if (!getRadioValue("q4")) return buildValidationIssue(document.querySelector('input[name="q4"]'), "Por favor, seleccione una respuesta para continuar.");
+  if (getRadioValue("q4") === "Si" && !document.getElementById("input-q4a").value.trim()) return buildValidationIssue(document.getElementById("input-q4a"), "Por favor, indique el monto aproximado de la cuota 2.");
+  if (!document.getElementById("input-q5").value.trim()) return buildValidationIssue(document.getElementById("input-q5"), "Por favor, complete el monto de la primera cuota.");
+  if (!getRadioValue("q5a")) return buildValidationIssue(document.querySelector('input[name="q5a"]'), "Por favor, seleccione una respuesta para continuar.");
+  if (!document.getElementById("input-q5b").value.trim()) return buildValidationIssue(document.getElementById("input-q5b"), "Por favor, complete la fecha estimada de pago de la primera cuota.");
+  if (!document.getElementById("input-q6").value.trim()) return buildValidationIssue(document.getElementById("input-q6"), "Por favor, complete el nombre del vendedor.");
+  if (!getRadioValue("q7")) return buildValidationIssue(document.querySelector('input[name="q7"]'), "Por favor, seleccione una respuesta para continuar.");
+  if (getRadioValue("q7") === "Si" && !document.getElementById("input-q7a").value.trim()) return buildValidationIssue(document.getElementById("input-q7a"), "Por favor, indique la marca y hasta que mes pago el otro plan.");
+  if (!getRadioValue("q8")) return buildValidationIssue(document.querySelector('input[name="q8"]'), "Por favor, indique como conocio la propuesta.");
+  if (!getRadioValue("q9")) return buildValidationIssue(document.querySelector('input[name="q9"]'), "Por favor, indique si desea que un asesor vuelva a contactarlo.");
+  if (getRadioValue("q9") === "Si" && !document.getElementById("input-q10").value.trim()) return buildValidationIssue(document.getElementById("input-q10"), "Por favor, deje una observacion para que podamos ayudarlo mejor.");
+  return null;
 }
 
 async function submitCallForm(event) {
   event.preventDefault();
   hideToast();
 
-  if (!validateForm()) {
-    showToast("Complete los campos obligatorios antes de guardar.");
+  const issue = validateForm();
+  if (issue) {
+    showFieldError(issue.field, issue.message);
+    focusInvalidField(issue.field);
+    showToast(issue.message);
     return;
   }
 
@@ -227,12 +327,21 @@ async function submitCallForm(event) {
     });
 
     const data = await response.json();
-    if (data.status !== "OK") {
-      throw new Error(data.message || "No se pudo guardar la llamada.");
+    if (data.status === "OK") {
+      setSuccessState("success");
+      viewForm.classList.add("hidden");
+      viewSuccess.classList.remove("hidden");
+      return;
     }
 
-    viewForm.classList.add("hidden");
-    viewSuccess.classList.remove("hidden");
+    if (data.status === "YA_RESPONDIO") {
+      setSuccessState("alreadyDone");
+      viewForm.classList.add("hidden");
+      viewSuccess.classList.remove("hidden");
+      return;
+    }
+
+    throw new Error(data.message || "No se pudo guardar la llamada.");
   } catch (error) {
     showToast(error.message || "No se pudo guardar la llamada.");
   } finally {

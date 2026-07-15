@@ -108,6 +108,7 @@
                 </div>
                 <div class="space-y-2 border-t border-autosol-border pt-3">
                   <p id="q2-text" class="text-sm font-semibold"></p>
+                  <p id="q2-note" class="hidden rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900"></p>
                   <div class="grid gap-2 sm:grid-cols-2">
                     <label class="chip-option-small"><input type="radio" name="q2" value="Si" required /><span>Si</span></label>
                     <label class="chip-option-small"><input type="radio" name="q2" value="No" /><span>No</span></label>
@@ -219,8 +220,8 @@
           <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 text-emerald-700">
             <i data-lucide="badge-check" class="h-8 w-8"></i>
           </div>
-          <h2 class="mb-2 font-display text-2xl font-semibold">Llamada guardada</h2>
-          <p class="mx-auto max-w-lg text-sm leading-relaxed text-autosol-accent">Las respuestas quedaron registradas en TMK y el scoring se recalculo sobre la misma fila.</p>
+          <h2 id="success-title" class="mb-2 font-display text-3xl font-semibold sm:text-4xl">Llamada guardada con exito</h2>
+          <p id="success-description" class="mx-auto max-w-lg text-base leading-relaxed text-autosol-accent sm:text-lg">Las respuestas quedaron registradas en TMK y el scoring se recalculo sobre la misma fila.</p>
         </div>
       </section>
     </main>

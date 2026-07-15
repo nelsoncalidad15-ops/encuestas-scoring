@@ -8,6 +8,8 @@ const errorToast = document.getElementById("error-toast");
 const errorToastMessage = document.getElementById("error-toast-message");
 const loadingText = document.getElementById("loading-text");
 const btnSaveCall = document.getElementById("btn-save-call");
+const successTitle = document.getElementById("success-title");
+const successDescription = document.getElementById("success-description");
 
 window.addEventListener("DOMContentLoaded", () => {
   if (window.lucide) window.lucide.createIcons();
@@ -95,6 +97,23 @@ function setButtonLoading(active, text) {
   btnSaveCall.classList.toggle("opacity-70", active);
   btnSaveCall.classList.toggle("cursor-not-allowed", active);
   btnSaveCall.textContent = text;
+}
+
+function setSuccessState(mode) {
+  const states = {
+    success: {
+      title: "Llamada guardada con exito",
+      description: "Las respuestas quedaron registradas en TMK y el scoring se recalculo sobre la misma fila."
+    },
+    alreadyDone: {
+      title: "Llamada ya guardada",
+      description: "Esta gestion ya estaba cerrada. No hace falta volver a cargarla porque las respuestas ya quedaron registradas."
+    }
+  };
+
+  const state = states[mode] || states.success;
+  if (successTitle) successTitle.textContent = state.title;
+  if (successDescription) successDescription.textContent = state.description;
 }
 
 function bindConditionalFields() {
@@ -308,12 +327,21 @@ async function submitCallForm(event) {
     });
 
     const data = await response.json();
-    if (data.status !== "OK") {
-      throw new Error(data.message || "No se pudo guardar la llamada.");
+    if (data.status === "OK") {
+      setSuccessState("success");
+      viewForm.classList.add("hidden");
+      viewSuccess.classList.remove("hidden");
+      return;
     }
 
-    viewForm.classList.add("hidden");
-    viewSuccess.classList.remove("hidden");
+    if (data.status === "YA_RESPONDIO") {
+      setSuccessState("alreadyDone");
+      viewForm.classList.add("hidden");
+      viewSuccess.classList.remove("hidden");
+      return;
+    }
+
+    throw new Error(data.message || "No se pudo guardar la llamada.");
   } catch (error) {
     showToast(error.message || "No se pudo guardar la llamada.");
   } finally {
