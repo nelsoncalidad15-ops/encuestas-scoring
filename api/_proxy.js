@@ -26,6 +26,26 @@ async function readBody(req) {
   return raw ? JSON.parse(raw) : {};
 }
 
+function parseAppsScriptPayload(raw) {
+  const text = String(raw || "").replace(/^\uFEFF/, "").trim();
+  if (!text) return null;
+
+  try {
+    return JSON.parse(text);
+  } catch (error) {
+    const start = text.indexOf("{");
+    const end = text.lastIndexOf("}");
+    if (start !== -1 && end > start) {
+      try {
+        return JSON.parse(text.slice(start, end + 1));
+      } catch (innerError) {
+        return null;
+      }
+    }
+    return null;
+  }
+}
+
 export async function handleProxy(req, res, action) {
   if (req.method === "OPTIONS") {
     return json(res, 204, {});
@@ -71,11 +91,9 @@ export async function handleProxy(req, res, action) {
     });
 
     const raw = await response.text();
-    let data;
+    const data = parseAppsScriptPayload(raw);
 
-    try {
-      data = JSON.parse(raw);
-    } catch (error) {
+    if (!data) {
       return json(res, 502, {
         status: "ERROR",
         message: "Apps Script devolvio una respuesta invalida",

@@ -367,10 +367,10 @@ function normalizarTelefonoWhatsapp_(telefono) {
 }
 
 function construirMensajeWhatsApp_(nombre, linkEncuesta) {
-  return "Hola, Sr./Sra. " + nombre + ". Mi nombre es " + NOMBRE_CONTACT + ", me comunico desde Autosol.\n\n" +
-    "Le compartimos el link para realizar la validacion de su suscripcion al Plan de Ahorro:\n\n" +
-    linkEncuesta + "\n\n" +
-    "La encuesta es breve y nos permite confirmar que la informacion de su plan fue correctamente explicada y registrada. Para ingresar, debera colocar su DNI unicamente como validacion de identidad.\n\n" +
+  return "Estimado/a. " + nombre + ". Me comunico desde Autosol. " +
+    "Le compartimos el link para realizar la validacion de su suscripcion al Plan de Ahorro: " +
+    linkEncuesta + " " +
+    "La encuesta es breve y nos permite confirmar que la informacion de su plan fue correctamente explicada y registrada. Para ingresar, debera colocar su DNI unicamente como validacion de identidad. " +
     "Muchas gracias. Saludos cordiales.";
 }
 
@@ -2241,6 +2241,9 @@ function aplicarFormatoFilaTmk_(sheet, rowIndex) {
     .setFontColor("#111827")
     .setVerticalAlignment("middle")
     .setWrap(true);
+  var colMotivo = getCol_(map, 'MOTIVO_RESULTADO');
+  if (colMotivo) sheet.getRange(rowIndex, colMotivo).setWrap(false).setWrapStrategy(SpreadsheetApp.WrapStrategy.CLIP);
+  sheet.setRowHeight(rowIndex, 21);
   pintarCeldaSiExiste_(sheet, rowIndex, map, "LINK_ENCUESTA", "#eff6ff");
   pintarCeldaSiExiste_(sheet, rowIndex, map, "ENVIAR WPP", "#eff6ff");
   pintarCeldaSiExiste_(sheet, rowIndex, map, "ESTADO_TMK", "#f8fafc");
@@ -4840,7 +4843,7 @@ function escribirRespuestasEnFilaTMKRapidaFinal_(sheet, rowIndex, headerMap, res
     'Q9_Necesita_recontacto': respuestas.q9,
     'Q10_Observaciones_cliente': respuestas.q10 || '',
     'RESULTADO_SCORING': scoring.resultado,
-    'MOTIVO_RESULTADO': scoring.motivo,
+    'MOTIVO_RESULTADO': construirMensajeMotivoResultadoTMK_(getVal_(current, headerMap, 'NOMBRE Y APELLIDO'), getVal_(current, headerMap, 'NOMBRE DEL VENDEDOR'), scoring.motivo, respuestas.q10 || ''),
     'REQUIERE_RECONTACTO': scoring.requiereRecontacto,
     'AREA_A_REVISAR': scoring.area,
     'OBSERVACION_INTERNA': scoring.observacion,
@@ -6098,7 +6101,7 @@ function formatearHojasTMK_() {
     setWidthIfExists_(sheet, map, 'CUOTA 2', 95);
     setWidthIfExists_(sheet, map, 'OBSERVACION_TMK', 260);
     setWidthIfExists_(sheet, map, 'RESULTADO_SCORING', 130);
-    setWidthIfExists_(sheet, map, 'MOTIVO_RESULTADO', 320);
+    setWidthIfExists_(sheet, map, 'MOTIVO_RESULTADO', 220);
     setWidthIfExists_(sheet, map, 'REQUIERE_RECONTACTO', 130);
     setWidthIfExists_(sheet, map, 'AREA_A_REVISAR', 150);
 
@@ -6113,6 +6116,8 @@ function formatearHojasTMK_() {
     aplicarValidacionEstadoTMK_(sheet, map);
     aplicarFormatoDecision_(sheet, map);
     aplicarFormatoEstadoTMK_(sheet, map);
+    normalizarMensajesMotivoResultadoTMK_(sheet, map);
+    if (lastRow > 1) sheet.setRowHeightsForced(2, lastRow - 1, 21);
 
     hideHeadersIfPresent_(sheet, map, TMK_HIDE_HEADERS);
   }
@@ -6271,6 +6276,56 @@ function canalScoringLegible_(canal) {
   return raw || '';
 }
 
+function limpiarMotivoResultadoTMK_(texto) {
+  var limpio = String(texto || '').trim();
+  if (!limpio) return '';
+  limpio = limpio.replace(/^Asesor:\s*.*?\|\s*Cliente:\s*.*?\|\s*Refuerzo:\s*/i, '');
+  limpio = limpio.replace(/\|\s*Comentario:\s*.*$/i, '');
+  limpio = limpio.replace(/\s+/g, ' ');
+  limpio = limpio.replace(/(^|\|\s*)\d+\.\s*/g, '$1');
+  limpio = limpio.replace(/Q\d+[A-Z]?\:\s*'[^']*'\.\s*/gi, '');
+  limpio = limpio.replace(/\s*\|\s*/g, '; ');
+  limpio = limpio.replace(/\s*;\s*/g, '; ');
+  limpio = limpio.replace(/;;+/g, ';');
+  return limpio.replace(/^[;\s]+|[;\s]+$/g, '');
+}
+
+function construirMensajeMotivoResultadoTMK_(nombreCliente, nombreAsesor, motivoBase, comentarioCliente) {
+  var motivo = limpiarMotivoResultadoTMK_(motivoBase);
+  if (!motivo) return '';
+  var asesor = String(nombreAsesor || '').trim() || 'Sin asesor';
+  var cliente = String(nombreCliente || '').trim() || 'Sin cliente';
+  var comentario = String(comentarioCliente || '').trim();
+  var mensaje = 'Asesor: ' + asesor + ' | Cliente: ' + cliente + ' | Refuerzo: ' + motivo;
+  if (comentario) mensaje += ' | Comentario: ' + comentario;
+  return mensaje;
+}
+
+function normalizarMensajesMotivoResultadoTMK_(sheet, map) {
+  if (!sheet || !map || sheet.getLastRow() < 2) return;
+  var colMotivo = getCol_(map, 'MOTIVO_RESULTADO');
+  if (!colMotivo) return;
+  var data = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
+  var salida = [];
+  for (var i = 0; i < data.length; i++) {
+    var row = data[i];
+    var motivoActual = getVal_(row, map, 'MOTIVO_RESULTADO');
+    if (!motivoActual) {
+      salida.push(['']);
+      continue;
+    }
+    salida.push([construirMensajeMotivoResultadoTMK_(
+      getVal_(row, map, 'NOMBRE Y APELLIDO'),
+      getVal_(row, map, 'NOMBRE DEL VENDEDOR'),
+      motivoActual,
+      getVal_(row, map, 'Q10_Observaciones_cliente')
+    )]);
+  }
+  sheet.getRange(2, colMotivo, salida.length, 1).setValues(salida);
+  sheet.getRange(2, colMotivo, salida.length, 1).setWrap(false).setWrapStrategy(SpreadsheetApp.WrapStrategy.CLIP);
+  sheet.setRowHeightsForced(2, salida.length, 21);
+}
+
 function escribirRespuestasEnFilaTMKRapidaFinal_(sheet, rowIndex, headerMap, respuestas, scoring, canal) {
   var current = sheet.getRange(rowIndex, 1, 1, sheet.getLastColumn()).getValues()[0];
   var updated = mutarFilaPorCambios_(current, headerMap, {
@@ -6289,7 +6344,7 @@ function escribirRespuestasEnFilaTMKRapidaFinal_(sheet, rowIndex, headerMap, res
     'Q9_Necesita_recontacto': respuestas.q9,
     'Q10_Observaciones_cliente': respuestas.q10 || '',
     'RESULTADO_SCORING': scoring.resultado,
-    'MOTIVO_RESULTADO': scoring.motivo,
+    'MOTIVO_RESULTADO': construirMensajeMotivoResultadoTMK_(getVal_(current, headerMap, 'NOMBRE Y APELLIDO'), getVal_(current, headerMap, 'NOMBRE DEL VENDEDOR'), scoring.motivo, respuestas.q10 || ''),
     'REQUIERE_RECONTACTO': scoring.requiereRecontacto,
     'AREA_A_REVISAR': scoring.area,
     'OBSERVACION_INTERNA': scoring.observacion,
@@ -6375,7 +6430,7 @@ function formatearHojasTMK_() {
     setWidthIfExists_(sheet, map, 'FECHA_ENVIO_LINK', 110);
     setWidthIfExists_(sheet, map, 'DECISION_FINAL', 120);
     setWidthIfExists_(sheet, map, 'RESULTADO_SCORING', 130);
-    setWidthIfExists_(sheet, map, 'MOTIVO_RESULTADO', 320);
+    setWidthIfExists_(sheet, map, 'MOTIVO_RESULTADO', 220);
     setWidthIfExists_(sheet, map, 'REQUIERE_RECONTACTO', 130);
     setWidthIfExists_(sheet, map, 'AREA_A_REVISAR', 150);
     setWidthIfExists_(sheet, map, 'OBSERVACION_TMK', 260);
@@ -6392,6 +6447,8 @@ function formatearHojasTMK_() {
     aplicarValidacionEstadoTMK_(sheet, map);
     aplicarFormatoDecision_(sheet, map);
     aplicarFormatoEstadoTMK_(sheet, map);
+    normalizarMensajesMotivoResultadoTMK_(sheet, map);
+    if (lastRow > 1) sheet.setRowHeightsForced(2, lastRow - 1, 21);
 
     hideHeadersIfPresent_(sheet, map, TMK_HIDE_HEADERS);
   }
@@ -6400,4 +6457,8 @@ function formatearHojasTMK_() {
   limpiarValidacionesTMK_(rejectSheet);
   var rejectMap = getHeaderMapFlexible_(rejectSheet);
   hideHeadersIfPresent_(rejectSheet, rejectMap, TMK_HIDE_HEADERS);
+}
+
+function ejecutarFormatoTMK() {
+  formatearHojasTMK_();
 }

@@ -143,6 +143,18 @@ function setSuccessState(mode) {
         "Si solicito contacto, el equipo lo revisara al finalizar."
       ]
     },
+    pendingConfirm: {
+      wrapClass: "mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-sky-50 text-sky-700",
+      icon: "clock-3",
+      title: "Validacion enviada",
+      description: "Recibimos su envio y estamos terminando de confirmarlo en nuestro sistema. Si la pagina tardo o su conexion fue inestable, no hace falta reenviar de inmediato.",
+      note: "Espere unos segundos antes de volver a intentar.",
+      items: [
+        "La informacion ya fue enviada para registrarse.",
+        "Si solicito contacto, el equipo lo revisara al finalizar.",
+        "Solo reintente si luego confirma que no quedo registrada."
+      ]
+    },
     success: {
       wrapClass: "mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 text-emerald-700",
       icon: "badge-check",
@@ -611,9 +623,8 @@ async function submitSurvey() {
     console.error(error);
     setSubmittingState(false);
     setButtonLoading(btnNavNext, false, "Enviar validacion");
-    hideElement(viewSuccess);
-    showElement(progressContainer);
-    showElement(surveyQuestionsContainer);
-    showToast("Error de red. No pudimos guardar su encuesta. Compruebe su conexion e intente nuevamente.");
+    setSuccessState("pendingConfirm");
+    showElement(viewSuccess);
+    return;
   }
 }
