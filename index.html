@@ -90,8 +90,8 @@
             <form id="form-validation" class="space-y-4" onsubmit="validateDni(event)">
               <div>
                 <label for="input-dni" class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.18em] text-autosol-accent">Documento de identidad</label>
-                <input id="input-dni" type="text" inputmode="numeric" pattern="[0-9]{7,8}" required placeholder="Solo numeros" class="block w-full rounded-xl border border-autosol-border bg-autosol-light px-4 py-3 text-sm text-autosol-dark outline-none transition focus:border-autosol-primary focus:ring-2 focus:ring-autosol-primary/15" />
-                <p class="mt-1.5 text-[11px] text-autosol-accent">Su DNI se procesa de forma protegida.</p>
+                <input id="input-dni" type="text" inputmode="numeric" pattern="[0-9]{7,11}" required placeholder="Solo numeros" class="block w-full rounded-xl border border-autosol-border bg-autosol-light px-4 py-3 text-sm text-autosol-dark outline-none transition focus:border-autosol-primary focus:ring-2 focus:ring-autosol-primary/15" />
+                <p class="mt-1.5 text-[11px] text-autosol-accent">Su DNI o CUIT se procesa de forma protegida.</p>
               </div>
               <button id="btn-validate-submit" type="submit" class="w-full rounded-xl bg-autosol-primary px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#4c4c37]">Validar y continuar</button>
             </form>

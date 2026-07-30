@@ -332,8 +332,8 @@ async function validateDni(event) {
   hideToast();
 
   const dniVal = document.getElementById("input-dni").value.replace(/\D/g, "");
-  if (dniVal.length < 7 || dniVal.length > 8) {
-    showToast("El DNI debe tener entre 7 y 8 numeros.");
+  if (dniVal.length < 7 || dniVal.length > 11) {
+    showToast("El documento debe tener entre 7 y 11 numeros.");
     return;
   }
 
