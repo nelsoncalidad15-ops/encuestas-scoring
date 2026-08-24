@@ -46,6 +46,82 @@ function parseAppsScriptPayload(raw) {
   }
 }
 
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function previewForLog(raw) {
+  return String(raw || "")
+    .replace(/\s+/g, " ")
+    .slice(0, 300);
+}
+
+async function requestAppsScript({ appsScriptUrl, payload, action }) {
+  // Solo la validacion es segura para reintentar: no modifica datos. Evitamos
+  // repetir el guardado de una encuesta si la primera llamada quedo en curso.
+  const attempts = action === "validarCliente" ? 2 : 1;
+  let lastResult = null;
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    const controller = new AbortController();
+    // Dos intentos de 27 s entran dentro del limite de 60 s de Vercel y evitan
+    // que una ejecucion de Google bloqueada consuma todo el tiempo disponible.
+    const timeout = action === "validarCliente"
+      ? setTimeout(() => controller.abort(), 27000)
+      : null;
+    const startedAt = Date.now();
+
+    try {
+      const response = await fetch(appsScriptUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+      const raw = await response.text();
+      const data = parseAppsScriptPayload(raw);
+      const elapsedMs = Date.now() - startedAt;
+
+      console.info("[apps-script]", {
+        action,
+        attempt,
+        status: response.status,
+        elapsedMs,
+        json: Boolean(data),
+      });
+
+      lastResult = { response, raw, data };
+      if (response.ok && data) return lastResult;
+
+      if (attempt < attempts) {
+        console.warn("[apps-script] Reintentando validacion", {
+          action,
+          attempt,
+          status: response.status,
+          elapsedMs,
+          responsePreview: previewForLog(raw),
+        });
+        await wait(700);
+      }
+    } catch (error) {
+      lastError = error;
+      console.warn("[apps-script] Error en intento", {
+        action,
+        attempt,
+        elapsedMs: Date.now() - startedAt,
+        error: error?.name || "Error",
+      });
+      if (attempt < attempts) await wait(700);
+    } finally {
+      if (timeout) clearTimeout(timeout);
+    }
+  }
+
+  if (lastResult) return lastResult;
+  throw lastError || new Error("Apps Script no respondio");
+}
+
 export async function handleProxy(req, res, action) {
   if (req.method === "OPTIONS") {
     return json(res, 204, {});
@@ -78,26 +154,29 @@ export async function handleProxy(req, res, action) {
       });
     }
 
-    const response = await fetch(appsScriptUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    const result = await requestAppsScript({
+      appsScriptUrl,
+      action,
+      payload: {
         action,
         backendSecret,
         token,
         dni,
         ...(action === "guardarEncuesta" ? { respuestas } : {}),
-      }),
+      },
     });
-
-    const raw = await response.text();
-    const data = parseAppsScriptPayload(raw);
+    const { response, raw, data } = result;
 
     if (!data) {
+      console.error("[apps-script] Respuesta no JSON", {
+        action,
+        status: response.status,
+        responsePreview: previewForLog(raw),
+      });
       return json(res, 502, {
         status: "ERROR",
         message: "Apps Script devolvio una respuesta invalida",
-        raw,
+        appsScriptStatus: response.status,
       });
     }
 
@@ -111,9 +190,16 @@ export async function handleProxy(req, res, action) {
 
     return json(res, 200, data);
   } catch (error) {
+    const timedOut = error?.name === "AbortError";
+    console.error("[apps-script] No se pudo completar la solicitud", {
+      action,
+      error: error?.name || "Error",
+    });
     return json(res, 500, {
       status: "ERROR",
-      message: error?.message || "No se pudo completar la solicitud",
+      message: timedOut
+        ? "La validacion esta demorando mas de lo habitual. Intente nuevamente en unos segundos."
+        : "No se pudo completar la solicitud",
     });
   }
 }
